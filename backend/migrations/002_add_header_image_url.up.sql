@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN header_image_url TEXT NOT NULL DEFAULT '';

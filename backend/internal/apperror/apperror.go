@@ -19,6 +19,10 @@ func Unauthorized(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 401, Message: fmt.Sprintf(msg, args...)}
 }
 
+func NotFound(msg string, args ...interface{}) *AppError {
+	return &AppError{Code: 404, Message: fmt.Sprintf(msg, args...)}
+}
+
 func Conflict(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 409, Message: fmt.Sprintf(msg, args...)}
 }

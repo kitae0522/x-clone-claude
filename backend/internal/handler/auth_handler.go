@@ -103,17 +103,3 @@ func setTokenCookie(c *fiber.Ctx, token string) {
 	})
 }
 
-func respondError(c *fiber.Ctx, err error) error {
-	if appErr, ok := err.(*apperror.AppError); ok {
-		return c.Status(appErr.Code).JSON(dto.APIResponse{
-			Success: false,
-			Error:   &appErr.Message,
-		})
-	}
-
-	msg := "internal server error"
-	return c.Status(fiber.StatusInternalServerError).JSON(dto.APIResponse{
-		Success: false,
-		Error:   &msg,
-	})
-}

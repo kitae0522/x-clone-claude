@@ -14,6 +14,7 @@ type User struct {
 	DisplayName     string
 	Bio             string
 	ProfileImageURL string
+	HeaderImageURL  string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
