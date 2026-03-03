@@ -1,6 +1,7 @@
 import { usePosts } from '@/hooks/usePosts'
 import { useAuth } from '@/hooks/useAuthContext'
 import PostCard from '@/components/PostCard'
+import ComposeForm from '@/components/ComposeForm'
 import styles from './HomePage.module.css'
 
 export default function HomePage() {
@@ -18,6 +19,7 @@ export default function HomePage() {
           </button>
         </div>
       </header>
+      <ComposeForm />
       <main>
         {isLoading && <p>Loading posts...</p>}
         {error && <p>Error: {error.message}</p>}

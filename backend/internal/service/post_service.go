@@ -1,50 +1,91 @@
 package service
 
 import (
-	"time"
+	"context"
+	"unicode/utf8"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
 )
 
 type PostService interface {
-	GetPosts() ([]model.Post, error)
+	CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error)
+	GetPostByID(ctx context.Context, id uuid.UUID) (*dto.PostDetailResponse, error)
+	GetPosts(ctx context.Context) ([]dto.PostDetailResponse, error)
 }
 
-type postService struct{}
-
-func NewPostService() PostService {
-	return &postService{}
+type postService struct {
+	postRepo repository.PostRepository
 }
 
-func (s *postService) GetPosts() ([]model.Post, error) {
-	now := time.Now()
+func NewPostService(postRepo repository.PostRepository) PostService {
+	return &postService{postRepo: postRepo}
+}
 
-	posts := []model.Post{
-		{
-			ID:         "550e8400-e29b-41d4-a716-446655440001",
-			AuthorID:   "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-			Content:    "Hello, world! This is my first public post.",
-			Visibility: model.VisibilityPublic,
-			CreatedAt:  now.Add(-2 * time.Hour),
-			UpdatedAt:  now.Add(-2 * time.Hour),
-		},
-		{
-			ID:         "550e8400-e29b-41d4-a716-446655440002",
-			AuthorID:   "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-			Content:    "Only my friends can see this post!",
-			Visibility: model.VisibilityFriends,
-			CreatedAt:  now.Add(-1 * time.Hour),
-			UpdatedAt:  now.Add(-1 * time.Hour),
-		},
-		{
-			ID:         "550e8400-e29b-41d4-a716-446655440003",
-			AuthorID:   "c3d4e5f6-a7b8-9012-cdef-123456789012",
-			Content:    "This is a private note to myself.",
-			Visibility: model.VisibilityPrivate,
-			CreatedAt:  now.Add(-30 * time.Minute),
-			UpdatedAt:  now.Add(-30 * time.Minute),
-		},
+func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error) {
+	content := req.Content
+	if utf8.RuneCountInString(content) == 0 {
+		return nil, apperror.BadRequest("content must not be empty")
+	}
+	if utf8.RuneCountInString(content) > 280 {
+		return nil, apperror.BadRequest("content must not exceed 280 characters")
 	}
 
-	return posts, nil
+	visibility := model.VisibilityPublic
+	if req.Visibility != "" {
+		switch model.Visibility(req.Visibility) {
+		case model.VisibilityPublic, model.VisibilityFriends, model.VisibilityPrivate:
+			visibility = model.Visibility(req.Visibility)
+		default:
+			return nil, apperror.BadRequest("invalid visibility: %s", req.Visibility)
+		}
+	}
+
+	post := &model.Post{
+		AuthorID:   authorID,
+		Content:    content,
+		Visibility: visibility,
+	}
+
+	if err := s.postRepo.Create(ctx, post); err != nil {
+		return nil, apperror.Internal("failed to create post")
+	}
+
+	result, err := s.postRepo.FindByID(ctx, post.ID)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve created post")
+	}
+
+	resp := dto.ToPostDetailResponse(*result)
+	return &resp, nil
+}
+
+func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID) (*dto.PostDetailResponse, error) {
+	result, err := s.postRepo.FindByID(ctx, id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apperror.NotFound("post not found")
+		}
+		return nil, apperror.Internal("failed to retrieve post")
+	}
+
+	resp := dto.ToPostDetailResponse(*result)
+	return &resp, nil
+}
+
+func (s *postService) GetPosts(ctx context.Context) ([]dto.PostDetailResponse, error) {
+	posts, err := s.postRepo.FindAll(ctx, 50, 0)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve posts")
+	}
+
+	responses := make([]dto.PostDetailResponse, len(posts))
+	for i, p := range posts {
+		responses[i] = dto.ToPostDetailResponse(p)
+	}
+	return responses, nil
 }

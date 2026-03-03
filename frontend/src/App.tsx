@@ -7,6 +7,7 @@ import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
+import PostDetailPage from '@/pages/PostDetailPage'
 import OnboardingPage from '@/pages/OnboardingPage'
 
 const queryClient = new QueryClient()
@@ -39,6 +40,14 @@ function App() {
                 <GuestRoute>
                   <RegisterPage />
                 </GuestRoute>
+              }
+            />
+            <Route
+              path="/post/:id"
+              element={
+                <ProtectedRoute>
+                  <PostDetailPage />
+                </ProtectedRoute>
               }
             />
             <Route

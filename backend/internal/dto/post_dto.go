@@ -4,6 +4,17 @@ import (
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 )
 
+type CreatePostRequest struct {
+	Content    string `json:"content"`
+	Visibility string `json:"visibility"`
+}
+
+type PostAuthor struct {
+	Username        string `json:"username"`
+	DisplayName     string `json:"displayName"`
+	ProfileImageURL string `json:"profileImageUrl"`
+}
+
 type PostResponse struct {
 	ID         string `json:"id"`
 	AuthorID   string `json:"authorId"`
@@ -13,13 +24,39 @@ type PostResponse struct {
 	UpdatedAt  string `json:"updatedAt"`
 }
 
+type PostDetailResponse struct {
+	ID         string     `json:"id"`
+	AuthorID   string     `json:"authorId"`
+	Content    string     `json:"content"`
+	Visibility string     `json:"visibility"`
+	Author     PostAuthor `json:"author"`
+	CreatedAt  string     `json:"createdAt"`
+	UpdatedAt  string     `json:"updatedAt"`
+}
+
 func ToPostResponse(p model.Post) PostResponse {
 	return PostResponse{
-		ID:         p.ID,
-		AuthorID:   p.AuthorID,
+		ID:         p.ID.String(),
+		AuthorID:   p.AuthorID.String(),
 		Content:    p.Content,
 		Visibility: string(p.Visibility),
 		CreatedAt:  p.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:  p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
+func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
+	return PostDetailResponse{
+		ID:         p.ID.String(),
+		AuthorID:   p.AuthorID.String(),
+		Content:    p.Content,
+		Visibility: string(p.Visibility),
+		Author: PostAuthor{
+			Username:        p.AuthorUsername,
+			DisplayName:     p.AuthorDisplayName,
+			ProfileImageURL: p.AuthorProfileImageURL,
+		},
+		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }

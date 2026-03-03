@@ -54,3 +54,24 @@ export interface UpdateProfileRequest {
   profileImageUrl: string
   headerImageUrl: string
 }
+
+export interface CreatePostRequest {
+  content: string
+  visibility: 'public' | 'friends' | 'private'
+}
+
+export interface PostAuthor {
+  username: string
+  displayName: string
+  profileImageUrl: string
+}
+
+export interface PostDetail {
+  id: string
+  authorId: string
+  content: string
+  visibility: 'public' | 'friends' | 'private'
+  author: PostAuthor
+  createdAt: string
+  updatedAt: string
+}
