@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Visibility string
 
@@ -11,10 +15,17 @@ const (
 )
 
 type Post struct {
-	ID         string
-	AuthorID   string
+	ID         uuid.UUID
+	AuthorID   uuid.UUID
 	Content    string
 	Visibility Visibility
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+type PostWithAuthor struct {
+	Post
+	AuthorUsername        string
+	AuthorDisplayName    string
+	AuthorProfileImageURL string
 }
