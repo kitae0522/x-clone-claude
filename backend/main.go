@@ -38,6 +38,9 @@ func main() {
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	authHandler := handler.NewAuthHandler(authService)
 
+	userService := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
+
 	api := app.Group("/api")
 	api.Get("/posts", postHandler.GetPosts)
 
@@ -46,6 +49,10 @@ func main() {
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/logout", authHandler.Logout)
 	auth.Get("/me", middleware.AuthRequired(cfg.JWTSecret), authHandler.Me)
+
+	users := api.Group("/users")
+	users.Put("/profile", middleware.AuthRequired(cfg.JWTSecret), userHandler.UpdateProfile)
+	users.Get("/:handle", userHandler.GetProfile)
 
 	log.Fatal(app.Listen(":8080"))
 }

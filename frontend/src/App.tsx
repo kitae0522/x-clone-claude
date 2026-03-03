@@ -6,6 +6,8 @@ import GuestRoute from '@/components/GuestRoute'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
+import ProfilePage from '@/pages/ProfilePage'
+import OnboardingPage from '@/pages/OnboardingPage'
 import './App.css'
 
 const queryClient = new QueryClient()
@@ -38,6 +40,22 @@ function App() {
                 <GuestRoute>
                   <RegisterPage />
                 </GuestRoute>
+              }
+            />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <OnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/:handle"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
               }
             />
           </Routes>

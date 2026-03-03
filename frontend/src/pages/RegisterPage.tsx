@@ -40,7 +40,7 @@ export default function RegisterPage() {
 
     register.mutate(
       { email, username, password },
-      { onSuccess: () => navigate('/') },
+      { onSuccess: () => navigate('/onboarding') },
     )
   }
 
