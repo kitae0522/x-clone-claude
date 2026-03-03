@@ -1,0 +1,32 @@
+name: "🐞 버그 리포트"
+description: "발생한 버그에 관하여 이슈를 남겨보세요."
+labels: "🐞 버그 리포트"
+body:
+  - type: textarea
+    attributes:
+      label: 🐞 버그 설명
+      description: 발생한 버그에 관한 설명을 꼼꼼하게 작성해 주세요!
+      placeholder:
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 📄 에러 로그
+      description: 에러 로그를 복사 및 붙여넣기 해주세요!
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: 🌏 개발 환경
+      description: 버그가 발생한 환경에 대해 작성해 주세요!
+      placeholder: |
+        OS: macOS 14.3
+        Go Version: 1.22
+        Node Version: 20.x
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 🙋🏻 덧붙일 말
+      description: 더 하고 싶은 말이 있다면 작성해 주세요!
