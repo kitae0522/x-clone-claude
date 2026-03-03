@@ -1,5 +1,5 @@
 import { usePosts } from '@/hooks/usePosts'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuthContext'
 import PostCard from '@/components/PostCard'
 import styles from './HomePage.module.css'
 
