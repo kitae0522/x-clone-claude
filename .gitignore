@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+tmp/
+backend/backend
+
+# IDE
+.vscode/
+.idea/
+*.sw?
+.DS_Store
+
+# Logs
+*.log
+claude_log/
+
+# Environment
+.env
+.env.local
+
+# Claude Code internal
+.claude/
