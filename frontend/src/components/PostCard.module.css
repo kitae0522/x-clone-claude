@@ -1,9 +1,12 @@
 .card {
-  border: 1px solid #e1e8ed;
-  border-radius: 12px;
   padding: 16px;
-  margin-bottom: 12px;
-  background: #fff;
+  border-bottom: 1px solid #2f3336;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.card:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .header {
@@ -13,9 +16,35 @@
   margin-bottom: 8px;
 }
 
-.author {
-  font-weight: 600;
-  color: #14171a;
+.authorInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #2f3336;
+}
+
+.displayName {
+  font-weight: 700;
+  color: #e7e9ea;
+  font-size: 15px;
+  margin-right: 4px;
+}
+
+.username {
+  color: #71767b;
   font-size: 14px;
 }
 
@@ -27,28 +56,28 @@
 }
 
 .public {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #0d3b1e;
+  color: #4caf50;
 }
 
 .friends {
-  background: #e3f2fd;
-  color: #1565c0;
+  background: #0a2a4a;
+  color: #42a5f5;
 }
 
 .private {
-  background: #fce4ec;
-  color: #c62828;
+  background: #3b0d0d;
+  color: #ef5350;
 }
 
 .content {
-  color: #14171a;
+  color: #e7e9ea;
   font-size: 15px;
   line-height: 1.5;
   margin-bottom: 8px;
 }
 
 .date {
-  color: #657786;
+  color: #71767b;
   font-size: 13px;
 }

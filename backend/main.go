@@ -31,7 +31,8 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	postService := service.NewPostService()
+	postRepo := repository.NewPostRepository(pool)
+	postService := service.NewPostService(postRepo)
 	postHandler := handler.NewPostHandler(postService)
 
 	userRepo := repository.NewUserRepository(pool)
@@ -42,7 +43,10 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 
 	api := app.Group("/api")
-	api.Get("/posts", postHandler.GetPosts)
+	posts := api.Group("/posts")
+	posts.Get("/", postHandler.GetPosts)
+	posts.Post("/", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreatePost)
+	posts.Get("/:id", postHandler.GetPostByID)
 
 	auth := api.Group("/auth")
 	auth.Post("/register", authHandler.Register)
