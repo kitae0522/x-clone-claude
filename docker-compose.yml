@@ -15,3 +15,22 @@ services:
     volumes:
       - ./backend:/app
       - /app/tmp
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/twitter_clone?sslmode=disable
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: twitter_clone
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
