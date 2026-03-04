@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A full-stack X (Twitter) clone monorepo. 
+A full-stack X (Twitter) clone monorepo.
 **Core flow**: User Auth (JWT) → Feed (Cursor Pagination) → Interactions (Likes/Reposts) → Real-time Notifications (WebSocket).
 
 ## Build & Development Commands
@@ -43,8 +43,16 @@ go test ./...        # Run tests
 * **Avoid Map Loops**: Do NOT loop over maps if deterministic order is required (prevents flaky tests).
 * **Naming Rules**: Use `get` for singular, `list` for plural. Do NOT use ambiguous terms like `info` or `details`.
 
+## Navigation
+- Go code convention → `.claude/rules/go-backend.md`
+- React code convention → `.claude/rules/react-frontend.md`
+- API pattern convention → `.claude/skills/api-patterns/SKILL.md`
+- WebSocket pattern convention → `.claude/skills/websocket/SKILL.md`
+- Testing convention → `.claude/skills/testing/SKILL.md`
+
 ## AI Directives (CRITICAL)
 
 1. **Plan Mode**: Always output a numbered plan and wait for user approval before writing code.
 2. **Token Efficiency**: Explicitly remind the user to run `/clear` after successfully completing a task.
 3. **ReBAC**: Service layer must explicitly verify user relationships (followers, blocks) before returning resources.
+4. **Working Memory**: Read docs/TODO.md before starting any task. Update it after completing.

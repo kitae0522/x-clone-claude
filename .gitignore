@@ -23,5 +23,7 @@ claude_log/
 .env
 .env.local
 
-# Claude Code internal
-.claude/
+# Claude Code - ignore local/sensitive files
+.claude/settings.local.json
+
+# Claude Code - tracked dirs are: rules/, agents/, commands/, skills/, settings.json
