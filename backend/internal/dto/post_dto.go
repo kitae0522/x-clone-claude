@@ -30,6 +30,8 @@ type PostDetailResponse struct {
 	Content    string     `json:"content"`
 	Visibility string     `json:"visibility"`
 	Author     PostAuthor `json:"author"`
+	LikeCount  int        `json:"likeCount"`
+	IsLiked    bool       `json:"isLiked"`
 	CreatedAt  string     `json:"createdAt"`
 	UpdatedAt  string     `json:"updatedAt"`
 }
@@ -56,6 +58,8 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 			DisplayName:     p.AuthorDisplayName,
 			ProfileImageURL: p.AuthorProfileImageURL,
 		},
+		LikeCount: p.LikeCount,
+		IsLiked:   p.IsLiked,
 		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}

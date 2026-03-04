@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Heart } from 'lucide-react'
 import { usePostDetail } from '@/hooks/usePosts'
 import { useAuth } from '@/hooks/useAuthContext'
 import { useProfile } from '@/hooks/useProfile'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
+import { useLike } from '@/hooks/useLike'
 import ProfileHoverCard from '@/components/ProfileHoverCard'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +21,7 @@ export default function PostDetailPage() {
   const { data: authorProfile } = useProfile(authorUsername, !!post && !isOwner)
   const follow = useFollow(authorUsername)
   const unfollow = useUnfollow(authorUsername)
+  const like = useLike(id ?? '', post?.isLiked ?? false)
 
   if (isLoading) return <p className="px-4 py-8 text-center text-muted-foreground">Loading...</p>
   if (error) return <p className="px-4 py-8 text-center text-muted-foreground">Error: {error.message}</p>
@@ -30,6 +33,11 @@ export default function PostDetailPage() {
     } else {
       follow.mutate()
     }
+  }
+
+  function handleLikeClick() {
+    if (!currentUser) return
+    like.mutate()
   }
 
   return (
@@ -103,9 +111,31 @@ export default function PostDetailPage() {
           )}
         </div>
         <p className="mb-4 text-[17px] leading-relaxed text-foreground">{post.content}</p>
-        <span className="block border-t border-border pt-4 text-sm text-muted-foreground">
-          {new Date(post.createdAt).toLocaleString()}
-        </span>
+        <div className="flex items-center gap-4 border-t border-border pt-4">
+          <span className="text-sm text-muted-foreground">
+            {new Date(post.createdAt).toLocaleString()}
+          </span>
+          <button
+            onClick={handleLikeClick}
+            className="group flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0"
+          >
+            <Heart
+              size={20}
+              className={cn(
+                'transition-colors group-hover:text-red-500',
+                post.isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground',
+              )}
+            />
+            <span
+              className={cn(
+                'text-sm transition-colors group-hover:text-red-500',
+                post.isLiked ? 'text-red-500' : 'text-muted-foreground',
+              )}
+            >
+              {post.likeCount}
+            </span>
+          </button>
+        </div>
       </article>
     </div>
   )
