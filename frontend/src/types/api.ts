@@ -92,6 +92,12 @@ export interface PostDetail {
   content: string
   visibility: 'public' | 'friends' | 'private'
   author: PostAuthor
+  likeCount: number
+  isLiked: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface LikeStatusResponse {
+  liked: boolean
 }

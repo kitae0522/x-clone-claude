@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Heart } from 'lucide-react'
 import type { PostDetail } from '@/types/api'
 import { useAuth } from '@/hooks/useAuthContext'
 import { useProfile } from '@/hooks/useProfile'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
+import { useLike } from '@/hooks/useLike'
 import ProfileHoverCard from '@/components/ProfileHoverCard'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +34,7 @@ function PostCard({ post }: PostCardProps) {
   const { data: authorProfile } = useProfile(post.author.username, !isOwner)
   const follow = useFollow(post.author.username)
   const unfollow = useUnfollow(post.author.username)
+  const like = useLike(post.id, post.isLiked)
 
   function handleFollowClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -40,6 +43,12 @@ function PostCard({ post }: PostCardProps) {
     } else {
       follow.mutate()
     }
+  }
+
+  function handleLikeClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!currentUser) return
+    like.mutate()
   }
 
   return (
@@ -118,9 +127,31 @@ function PostCard({ post }: PostCardProps) {
         </div>
       </div>
       <p className="mb-2 text-[15px] leading-normal text-foreground">{post.content}</p>
-      <span className="text-[13px] text-muted-foreground">
-        {new Date(post.createdAt).toLocaleString()}
-      </span>
+      <div className="flex items-center gap-4">
+        <span className="text-[13px] text-muted-foreground">
+          {new Date(post.createdAt).toLocaleString()}
+        </span>
+        <button
+          onClick={handleLikeClick}
+          className="group flex cursor-pointer items-center gap-1 border-none bg-transparent p-0"
+        >
+          <Heart
+            size={16}
+            className={cn(
+              'transition-colors group-hover:text-red-500',
+              post.isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground',
+            )}
+          />
+          <span
+            className={cn(
+              'text-[13px] transition-colors group-hover:text-red-500',
+              post.isLiked ? 'text-red-500' : 'text-muted-foreground',
+            )}
+          >
+            {post.likeCount}
+          </span>
+        </button>
+      </div>
     </div>
   )
 }

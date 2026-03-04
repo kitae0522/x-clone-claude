@@ -14,8 +14,8 @@ import (
 
 type PostService interface {
 	CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error)
-	GetPostByID(ctx context.Context, id uuid.UUID) (*dto.PostDetailResponse, error)
-	GetPosts(ctx context.Context) ([]dto.PostDetailResponse, error)
+	GetPostByID(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (*dto.PostDetailResponse, error)
+	GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.PostDetailResponse, error)
 }
 
 type postService struct {
@@ -64,8 +64,16 @@ func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dt
 	return &resp, nil
 }
 
-func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID) (*dto.PostDetailResponse, error) {
-	result, err := s.postRepo.FindByID(ctx, id)
+func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (*dto.PostDetailResponse, error) {
+	var result *model.PostWithAuthor
+	var err error
+
+	if userID != nil {
+		result, err = s.postRepo.FindByIDWithUser(ctx, id, *userID)
+	} else {
+		result, err = s.postRepo.FindByID(ctx, id)
+	}
+
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, apperror.NotFound("post not found")
@@ -77,8 +85,16 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID) (*dto.PostD
 	return &resp, nil
 }
 
-func (s *postService) GetPosts(ctx context.Context) ([]dto.PostDetailResponse, error) {
-	posts, err := s.postRepo.FindAll(ctx, 50, 0)
+func (s *postService) GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.PostDetailResponse, error) {
+	var posts []model.PostWithAuthor
+	var err error
+
+	if userID != nil {
+		posts, err = s.postRepo.FindAllWithUser(ctx, 50, 0, *userID)
+	} else {
+		posts, err = s.postRepo.FindAll(ctx, 50, 0)
+	}
+
 	if err != nil {
 		return nil, apperror.Internal("failed to retrieve posts")
 	}
