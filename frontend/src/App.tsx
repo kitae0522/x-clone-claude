@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePosts } from '@/hooks/usePosts'
 import PostCard from '@/components/PostCard'
-import './App.css'
 
 const queryClient = new QueryClient()
 
