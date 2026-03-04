@@ -23,11 +23,11 @@ async function putUpdateProfile(data: UpdateProfileRequest): Promise<User> {
   return json.data
 }
 
-export function useProfile(handle: string) {
+export function useProfile(handle: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ['users', handle],
     queryFn: () => fetchProfile(handle),
-    enabled: !!handle,
+    enabled: !!handle && enabled,
   })
 }
 

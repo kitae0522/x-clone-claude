@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuthContext'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
 import EditProfileModal from '@/components/EditProfileModal'
 import FollowListModal from '@/components/FollowListModal'
-import styles from './ProfilePage.module.css'
+import { cn } from '@/lib/utils'
 
 export default function ProfilePage() {
   const { handle } = useParams<{ handle: string }>()
@@ -25,22 +25,25 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <p className={styles.loading}>프로필을 불러오는 중...</p>
+      <div className="mx-auto max-w-[600px]">
+        <p className="px-4 py-8 text-center text-muted-foreground">프로필을 불러오는 중...</p>
       </div>
     )
   }
 
   if (error || !profile) {
     return (
-      <div className={styles.container}>
-        <header className={styles.backHeader}>
-          <button onClick={() => navigate(-1)} className={styles.backButton}>
+      <div className="mx-auto max-w-[600px]">
+        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/65 px-4 py-2 backdrop-blur-xl">
+          <button
+            onClick={() => navigate(-1)}
+            className="cursor-pointer rounded-full border-none bg-transparent p-2 text-lg text-foreground transition-colors hover:bg-foreground/10"
+          >
             &larr;
           </button>
-          <span className={styles.headerName}>프로필</span>
+          <span className="text-xl font-bold">프로필</span>
         </header>
-        <p className={styles.error}>
+        <p className="px-4 py-8 text-center text-destructive">
           {error?.message ?? '사용자를 찾을 수 없습니다.'}
         </p>
       </div>
@@ -61,39 +64,42 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className={styles.container}>
-      <header className={styles.backHeader}>
-        <button onClick={() => navigate(-1)} className={styles.backButton}>
+    <div className="mx-auto max-w-[600px]">
+      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/65 px-4 py-2 backdrop-blur-xl">
+        <button
+          onClick={() => navigate(-1)}
+          className="cursor-pointer rounded-full border-none bg-transparent p-2 text-lg text-foreground transition-colors hover:bg-foreground/10"
+        >
           &larr;
         </button>
-        <span className={styles.headerName}>{profile.displayName}</span>
+        <span className="text-xl font-bold">{profile.displayName}</span>
       </header>
 
       {profile.headerImageUrl ? (
         <img
           src={profile.headerImageUrl}
           alt="헤더 이미지"
-          className={styles.headerImage}
+          className="h-[200px] w-full object-cover"
         />
       ) : (
-        <div className={styles.headerImage} />
+        <div className="h-[200px] w-full bg-muted-foreground/30" />
       )}
 
-      <div className={styles.profileSection}>
-        <div className={styles.avatarRow}>
+      <div className="relative px-4">
+        <div className="-mt-10 flex items-start justify-between">
           {profile.profileImageUrl ? (
             <img
               src={profile.profileImageUrl}
               alt={profile.displayName}
-              className={styles.avatar}
+              className="h-20 w-20 rounded-full border-4 border-background object-cover"
             />
           ) : (
-            <div className={styles.avatar} />
+            <div className="h-20 w-20 rounded-full border-4 border-background bg-muted-foreground/30" />
           )}
           {isOwner ? (
             <button
               onClick={() => setShowEditModal(true)}
-              className={styles.editButton}
+              className="mt-12 cursor-pointer rounded-full border border-muted-foreground/50 bg-transparent px-4 py-1.5 text-sm font-bold text-foreground transition-colors hover:bg-foreground/10"
             >
               프로필 수정
             </button>
@@ -102,13 +108,14 @@ export default function ProfilePage() {
               onClick={handleFollowClick}
               onMouseEnter={() => setIsHoveringFollow(true)}
               onMouseLeave={() => setIsHoveringFollow(false)}
-              className={
+              className={cn(
+                'mt-12 min-w-[100px] cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50',
                 profile.isFollowing
                   ? isHoveringFollow
-                    ? styles.unfollowButton
-                    : styles.followingButton
-                  : styles.followButton
-              }
+                    ? 'border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
+                    : 'border border-muted-foreground/50 bg-transparent text-foreground'
+                  : 'border-none bg-foreground text-background hover:bg-foreground/90',
+              )}
               disabled={follow.isPending || unfollow.isPending}
             >
               {profile.isFollowing
@@ -120,23 +127,23 @@ export default function ProfilePage() {
           ) : null}
         </div>
 
-        <div className={styles.profileInfo}>
-          <div className={styles.displayName}>{profile.displayName}</div>
-          <div className={styles.handle}>@{profile.username}</div>
-          {profile.bio && <p className={styles.bio}>{profile.bio}</p>}
-          <div className={styles.joinedDate}>{joinedDate} 가입</div>
-          <div className={styles.followStats}>
+        <div className="mt-3 border-b border-border pb-4">
+          <div className="text-xl font-bold">{profile.displayName}</div>
+          <div className="text-[15px] text-muted-foreground">@{profile.username}</div>
+          {profile.bio && <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">{profile.bio}</p>}
+          <div className="mt-3 text-sm text-muted-foreground">{joinedDate} 가입</div>
+          <div className="mt-3 flex gap-5">
             <span
-              className={styles.followCount}
+              className="cursor-pointer text-sm text-muted-foreground hover:underline"
               onClick={() => setFollowListType('following')}
             >
-              <strong>{profile.followingCount}</strong> 팔로잉
+              <strong className="text-foreground">{profile.followingCount}</strong> 팔로잉
             </span>
             <span
-              className={styles.followCount}
+              className="cursor-pointer text-sm text-muted-foreground hover:underline"
               onClick={() => setFollowListType('followers')}
             >
-              <strong>{profile.followersCount}</strong> 팔로워
+              <strong className="text-foreground">{profile.followersCount}</strong> 팔로워
             </span>
           </div>
         </div>

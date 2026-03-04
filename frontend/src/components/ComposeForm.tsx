@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useCreatePost } from '@/hooks/usePosts'
-import styles from './ComposeForm.module.css'
+import { cn } from '@/lib/utils'
 
 const MAX_LENGTH = 280
 
@@ -21,24 +21,28 @@ export default function ComposeForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form className="border-b border-border p-4" onSubmit={handleSubmit}>
       <textarea
-        className={styles.textarea}
+        className="w-full resize-none border-none bg-transparent py-2 font-[inherit] text-lg text-foreground outline-none placeholder:text-muted-foreground"
         placeholder="What is happening?!"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         maxLength={300}
         rows={3}
       />
-      <div className={styles.footer}>
+      <div className="flex items-center justify-end gap-3 border-t border-border pt-2">
         <span
-          className={`${styles.counter} ${remaining < 0 ? styles.over : remaining <= 20 ? styles.warn : ''}`}
+          className={cn(
+            'text-sm text-muted-foreground',
+            remaining < 0 && 'text-destructive',
+            remaining >= 0 && remaining <= 20 && 'text-warning',
+          )}
         >
           {remaining}
         </span>
         <button
           type="submit"
-          className={styles.button}
+          className="cursor-pointer rounded-full bg-primary px-5 py-2 text-[15px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={remaining < 0 || content.trim().length === 0 || isPending}
         >
           {isPending ? 'Posting...' : 'Post'}
