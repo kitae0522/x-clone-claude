@@ -17,11 +17,14 @@ type ProfileResponse struct {
 	Bio             string `json:"bio"`
 	ProfileImageURL string `json:"profileImageUrl"`
 	HeaderImageURL  string `json:"headerImageUrl"`
+	FollowersCount  int    `json:"followersCount"`
+	FollowingCount  int    `json:"followingCount"`
+	IsFollowing     bool   `json:"isFollowing"`
 	CreatedAt       string `json:"createdAt"`
 	UpdatedAt       string `json:"updatedAt"`
 }
 
-func ToProfileResponse(u *model.User) ProfileResponse {
+func ToProfileResponse(u *model.User, followersCount, followingCount int, isFollowing bool) ProfileResponse {
 	return ProfileResponse{
 		ID:              u.ID.String(),
 		Username:        u.Username,
@@ -29,6 +32,9 @@ func ToProfileResponse(u *model.User) ProfileResponse {
 		Bio:             u.Bio,
 		ProfileImageURL: u.ProfileImageURL,
 		HeaderImageURL:  u.HeaderImageURL,
+		FollowersCount:  followersCount,
+		FollowingCount:  followingCount,
+		IsFollowing:     isFollowing,
 		CreatedAt:       u.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:       u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}

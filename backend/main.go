@@ -39,7 +39,11 @@ func main() {
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	authHandler := handler.NewAuthHandler(authService)
 
-	userService := service.NewUserService(userRepo)
+	followRepo := repository.NewFollowRepository(pool)
+	followService := service.NewFollowService(followRepo, userRepo)
+	followHandler := handler.NewFollowHandler(followService)
+
+	userService := service.NewUserService(userRepo, followRepo)
 	userHandler := handler.NewUserHandler(userService)
 
 	api := app.Group("/api")
@@ -56,7 +60,11 @@ func main() {
 
 	users := api.Group("/users")
 	users.Put("/profile", middleware.AuthRequired(cfg.JWTSecret), userHandler.UpdateProfile)
-	users.Get("/:handle", userHandler.GetProfile)
+	users.Post("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Follow)
+	users.Delete("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Unfollow)
+	users.Get("/:handle/following", followHandler.GetFollowing)
+	users.Get("/:handle/followers", followHandler.GetFollowers)
+	users.Get("/:handle", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetProfile)
 
 	log.Fatal(app.Listen(":8080"))
 }
