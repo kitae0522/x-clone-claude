@@ -11,19 +11,20 @@ import (
 )
 
 type UserService interface {
-	GetProfile(ctx context.Context, username string) (*dto.ProfileResponse, error)
+	GetProfile(ctx context.Context, username string, viewerID *uuid.UUID) (*dto.ProfileResponse, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) (*dto.UserResponse, error)
 }
 
 type userService struct {
-	userRepo repository.UserRepository
+	userRepo   repository.UserRepository
+	followRepo repository.FollowRepository
 }
 
-func NewUserService(userRepo repository.UserRepository) UserService {
-	return &userService{userRepo: userRepo}
+func NewUserService(userRepo repository.UserRepository, followRepo repository.FollowRepository) UserService {
+	return &userService{userRepo: userRepo, followRepo: followRepo}
 }
 
-func (s *userService) GetProfile(ctx context.Context, username string) (*dto.ProfileResponse, error) {
+func (s *userService) GetProfile(ctx context.Context, username string, viewerID *uuid.UUID) (*dto.ProfileResponse, error) {
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -32,7 +33,25 @@ func (s *userService) GetProfile(ctx context.Context, username string) (*dto.Pro
 		return nil, apperror.Internal("failed to find user")
 	}
 
-	resp := dto.ToProfileResponse(user)
+	followersCount, err := s.followRepo.CountFollowers(ctx, user.ID)
+	if err != nil {
+		return nil, apperror.Internal("failed to count followers")
+	}
+
+	followingCount, err := s.followRepo.CountFollowing(ctx, user.ID)
+	if err != nil {
+		return nil, apperror.Internal("failed to count following")
+	}
+
+	isFollowing := false
+	if viewerID != nil && *viewerID != user.ID {
+		isFollowing, err = s.followRepo.IsFollowing(ctx, *viewerID, user.ID)
+		if err != nil {
+			return nil, apperror.Internal("failed to check follow status")
+		}
+	}
+
+	resp := dto.ToProfileResponse(user, followersCount, followingCount, isFollowing)
 	return &resp, nil
 }
 

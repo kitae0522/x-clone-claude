@@ -5,41 +5,22 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 )
 
-func (m *mockUserRepo) FindByUsername(_ context.Context, username string) (*model.User, error) {
-	for _, u := range m.users {
-		if u.Username == username {
-			return u, nil
-		}
-	}
-	return nil, pgx.ErrNoRows
-}
-
-func (m *mockUserRepo) Update(_ context.Context, user *model.User) error {
-	m.usersByID[user.ID] = user
-	m.users[user.Email] = user
-	if user.Username != "" {
-		m.nameExists[user.Username] = true
-	}
-	return nil
-}
-
 func TestGetProfile_Success(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewUserService(repo)
+	followRepo := newMockFollowRepo()
+	svc := NewUserService(repo, followRepo)
 
-	// seed a user via auth service
 	authSvc := NewAuthService(repo, "test-secret", 24)
 	_, _ = authSvc.Register(context.Background(), dto.RegisterRequest{
 		Email: "profile@example.com", Username: "profileuser", Password: "password123",
 	})
 
-	profile, err := svc.GetProfile(context.Background(), "profileuser")
+	profile, err := svc.GetProfile(context.Background(), "profileuser", nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -50,9 +31,10 @@ func TestGetProfile_Success(t *testing.T) {
 
 func TestGetProfile_NotFound(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewUserService(repo)
+	followRepo := newMockFollowRepo()
+	svc := NewUserService(repo, followRepo)
 
-	_, err := svc.GetProfile(context.Background(), "nonexistent")
+	_, err := svc.GetProfile(context.Background(), "nonexistent", nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent user")
 	}
@@ -67,9 +49,9 @@ func TestGetProfile_NotFound(t *testing.T) {
 
 func TestUpdateProfile_Success(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewUserService(repo)
+	followRepo := newMockFollowRepo()
+	svc := NewUserService(repo, followRepo)
 
-	// seed a user
 	user := &model.User{
 		Email:        "update@example.com",
 		PasswordHash: "hash",
@@ -93,9 +75,9 @@ func TestUpdateProfile_Success(t *testing.T) {
 
 func TestUpdateProfile_DuplicateUsername(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewUserService(repo)
+	followRepo := newMockFollowRepo()
+	svc := NewUserService(repo, followRepo)
 
-	// seed two users
 	user1 := &model.User{
 		Email: "user1@example.com", PasswordHash: "hash", Username: "user1", DisplayName: "User 1",
 	}
@@ -107,7 +89,7 @@ func TestUpdateProfile_DuplicateUsername(t *testing.T) {
 
 	_, err := svc.UpdateProfile(context.Background(), user2.ID, dto.UpdateProfileRequest{
 		DisplayName: "User 2",
-		Username:    "user1", // taken by user1
+		Username:    "user1",
 	})
 	if err == nil {
 		t.Fatal("expected error for duplicate username")
@@ -123,7 +105,8 @@ func TestUpdateProfile_DuplicateUsername(t *testing.T) {
 
 func TestUpdateProfile_NotFound(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewUserService(repo)
+	followRepo := newMockFollowRepo()
+	svc := NewUserService(repo, followRepo)
 
 	_, err := svc.UpdateProfile(context.Background(), uuid.New(), dto.UpdateProfileRequest{
 		DisplayName: "Nobody",

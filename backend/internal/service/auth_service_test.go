@@ -54,6 +54,21 @@ func (m *mockUserRepo) ExistsByEmail(_ context.Context, email string) (bool, err
 	return m.emailExists[email], nil
 }
 
+func (m *mockUserRepo) FindByUsername(_ context.Context, username string) (*model.User, error) {
+	for _, u := range m.users {
+		if u.Username == username {
+			return u, nil
+		}
+	}
+	return nil, pgx.ErrNoRows
+}
+
+func (m *mockUserRepo) Update(_ context.Context, user *model.User) error {
+	m.users[user.Email] = user
+	m.usersByID[user.ID] = user
+	return nil
+}
+
 func (m *mockUserRepo) ExistsByUsername(_ context.Context, username string) (bool, error) {
 	return m.nameExists[username], nil
 }

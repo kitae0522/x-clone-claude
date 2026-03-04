@@ -22,7 +22,14 @@ func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
 		return respondError(c, apperror.BadRequest("handle is required"))
 	}
 
-	profile, err := h.userService.GetProfile(c.Context(), handle)
+	var viewerID *uuid.UUID
+	if userIDStr, ok := c.Locals("userID").(string); ok {
+		if id, err := uuid.Parse(userIDStr); err == nil {
+			viewerID = &id
+		}
+	}
+
+	profile, err := h.userService.GetProfile(c.Context(), handle, viewerID)
 	if err != nil {
 		return respondError(c, err)
 	}
