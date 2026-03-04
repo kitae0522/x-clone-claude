@@ -1,0 +1,39 @@
+{
+  "skills": {
+    "go-backend-patterns": {
+      "priority": "critical",
+      "promptTriggers": {
+        "keywords": ["handler", "service", "repository", "Go", "Fiber", "미들웨어", "라우터", "백엔드"],
+        "intentPatterns": ["(만들|구현|수정).*?(handler|service|repository|API)"]
+      }
+    },
+    "react-frontend-patterns": {
+      "priority": "critical",
+      "promptTriggers": {
+        "keywords": ["컴포넌트", "화면", "UI", "페이지", "hook", "React", "프론트"],
+        "intentPatterns": ["(만들|구현).*?(컴포넌트|페이지|화면)"]
+      }
+    },
+    "api-patterns": {
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": ["API", "엔드포인트", "JWT", "인증", "페이지네이션", "fetch", "요청"],
+        "intentPatterns": ["(연동|호출|통신).*?(API|서버)"]
+      }
+    },
+    "websocket-patterns": {
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": ["WebSocket", "실시간", "알림", "notification", "소켓", "푸시"],
+        "intentPatterns": ["(실시간|알림).*?(구현|만들)"]
+      }
+    },
+    "testing-patterns": {
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": ["테스트", "test", "TDD", "mock", "커버리지"],
+        "intentPatterns": ["(작성|만들|추가).*?(테스트|test)"]
+      }
+    }
+  }
+}
