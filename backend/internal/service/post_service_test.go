@@ -48,6 +48,14 @@ func (m *mockPostRepo) FindAll(_ context.Context, _, _ int) ([]model.PostWithAut
 	return posts, nil
 }
 
+func (m *mockPostRepo) FindByIDWithUser(_ context.Context, id, _ uuid.UUID) (*model.PostWithAuthor, error) {
+	return m.FindByID(context.Background(), id)
+}
+
+func (m *mockPostRepo) FindAllWithUser(_ context.Context, limit, offset int, _ uuid.UUID) ([]model.PostWithAuthor, error) {
+	return m.FindAll(context.Background(), limit, offset)
+}
+
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
 	svc := NewPostService(repo)
@@ -118,7 +126,7 @@ func TestGetPostByID_Success(t *testing.T) {
 	})
 
 	postID, _ := uuid.Parse(created.ID)
-	resp, err := svc.GetPostByID(context.Background(), postID)
+	resp, err := svc.GetPostByID(context.Background(), postID, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -131,7 +139,7 @@ func TestGetPostByID_NotFound(t *testing.T) {
 	repo := newMockPostRepo()
 	svc := NewPostService(repo)
 
-	_, err := svc.GetPostByID(context.Background(), uuid.New())
+	_, err := svc.GetPostByID(context.Background(), uuid.New(), nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent post")
 	}

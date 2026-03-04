@@ -19,6 +19,7 @@ type Post struct {
 	AuthorID   uuid.UUID
 	Content    string
 	Visibility Visibility
+	LikeCount  int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -26,6 +27,7 @@ type Post struct {
 type PostWithAuthor struct {
 	Post
 	AuthorUsername        string
-	AuthorDisplayName    string
+	AuthorDisplayName     string
 	AuthorProfileImageURL string
+	IsLiked               bool
 }

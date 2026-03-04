@@ -35,6 +35,10 @@ func main() {
 	postService := service.NewPostService(postRepo)
 	postHandler := handler.NewPostHandler(postService)
 
+	likeRepo := repository.NewLikeRepository(pool)
+	likeService := service.NewLikeService(likeRepo, postRepo)
+	likeHandler := handler.NewLikeHandler(likeService)
+
 	userRepo := repository.NewUserRepository(pool)
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
 	authHandler := handler.NewAuthHandler(authService)
@@ -48,9 +52,11 @@ func main() {
 
 	api := app.Group("/api")
 	posts := api.Group("/posts")
-	posts.Get("/", postHandler.GetPosts)
+	posts.Get("/", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPosts)
 	posts.Post("/", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreatePost)
-	posts.Get("/:id", postHandler.GetPostByID)
+	posts.Get("/:id", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPostByID)
+	posts.Post("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Like)
+	posts.Delete("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Unlike)
 
 	auth := api.Group("/auth")
 	auth.Post("/register", authHandler.Register)

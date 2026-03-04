@@ -1,0 +1,3 @@
+ALTER TABLE posts DROP COLUMN IF EXISTS like_count;
+
+DROP TABLE IF EXISTS likes;
