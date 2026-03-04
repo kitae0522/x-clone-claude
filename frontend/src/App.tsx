@@ -9,7 +9,6 @@ import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
 import PostDetailPage from '@/pages/PostDetailPage'
 import OnboardingPage from '@/pages/OnboardingPage'
-import './App.css'
 
 const queryClient = new QueryClient()
 

@@ -1,44 +1,109 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { usePostDetail } from '@/hooks/usePosts'
-import styles from './PostDetailPage.module.css'
+import { useAuth } from '@/hooks/useAuthContext'
+import { useProfile } from '@/hooks/useProfile'
+import { useFollow, useUnfollow } from '@/hooks/useFollow'
+import ProfileHoverCard from '@/components/ProfileHoverCard'
+import { cn } from '@/lib/utils'
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: post, isLoading, error } = usePostDetail(id ?? '')
+  const { user: currentUser } = useAuth()
+  const [isHoveringFollow, setIsHoveringFollow] = useState(false)
 
-  if (isLoading) return <p className={styles.status}>Loading...</p>
-  if (error) return <p className={styles.status}>Error: {error.message}</p>
-  if (!post) return <p className={styles.status}>Post not found.</p>
+  const authorUsername = post?.author.username ?? ''
+  const isOwner = currentUser?.username === authorUsername
+  const { data: authorProfile } = useProfile(authorUsername, !!post && !isOwner)
+  const follow = useFollow(authorUsername)
+  const unfollow = useUnfollow(authorUsername)
+
+  if (isLoading) return <p className="px-4 py-8 text-center text-muted-foreground">Loading...</p>
+  if (error) return <p className="px-4 py-8 text-center text-muted-foreground">Error: {error.message}</p>
+  if (!post) return <p className="px-4 py-8 text-center text-muted-foreground">Post not found.</p>
+
+  function handleFollowClick() {
+    if (authorProfile?.isFollowing) {
+      unfollow.mutate()
+    } else {
+      follow.mutate()
+    }
+  }
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <button className={styles.backButton} onClick={() => navigate(-1)}>
+    <div className="mx-auto max-w-[600px]">
+      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/65 px-4 py-3 backdrop-blur-xl">
+        <button
+          className="cursor-pointer rounded-full border-none bg-none p-1 px-2 text-xl text-foreground transition-colors hover:bg-foreground/10"
+          onClick={() => navigate(-1)}
+        >
           &larr;
         </button>
-        <h1 className={styles.title}>Post</h1>
+        <h1 className="text-xl font-bold">Post</h1>
       </header>
-      <article className={styles.post}>
-        <div className={styles.authorRow}>
+      <article className="p-4">
+        <div className="mb-4 flex items-center gap-3">
           {post.author.profileImageUrl ? (
             <img
               src={post.author.profileImageUrl}
               alt=""
-              className={styles.avatar}
+              className="h-12 w-12 rounded-full object-cover"
             />
           ) : (
-            <div className={styles.avatarPlaceholder} />
+            <div className="h-12 w-12 rounded-full bg-border" />
           )}
-          <div className={styles.authorText}>
-            <span className={styles.displayName}>
-              {post.author.displayName || post.author.username}
+          <div className="flex flex-1 flex-col">
+            <ProfileHoverCard
+              handle={post.author.username}
+              currentUsername={currentUser?.username}
+            >
+              <span
+                className="cursor-pointer text-[15px] font-bold text-foreground hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/${post.author.username}`)
+                }}
+              >
+                {post.author.displayName || post.author.username}
+              </span>
+            </ProfileHoverCard>
+            <span
+              className="cursor-pointer text-sm text-muted-foreground hover:underline"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/${post.author.username}`)
+              }}
+            >
+              @{post.author.username}
             </span>
-            <span className={styles.username}>@{post.author.username}</span>
           </div>
+          {!isOwner && currentUser && authorProfile && (
+            <button
+              onClick={handleFollowClick}
+              onMouseEnter={() => setIsHoveringFollow(true)}
+              onMouseLeave={() => setIsHoveringFollow(false)}
+              className={cn(
+                'min-w-[90px] cursor-pointer rounded-full px-3 py-1.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50',
+                authorProfile.isFollowing
+                  ? isHoveringFollow
+                    ? 'border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
+                    : 'border border-muted-foreground/50 bg-transparent text-foreground'
+                  : 'border-none bg-foreground text-background hover:bg-foreground/90',
+              )}
+              disabled={follow.isPending || unfollow.isPending}
+            >
+              {authorProfile.isFollowing
+                ? isHoveringFollow
+                  ? '언팔로우'
+                  : '팔로잉'
+                : '팔로우'}
+            </button>
+          )}
         </div>
-        <p className={styles.content}>{post.content}</p>
-        <span className={styles.date}>
+        <p className="mb-4 text-[17px] leading-relaxed text-foreground">{post.content}</p>
+        <span className="block border-t border-border pt-4 text-sm text-muted-foreground">
           {new Date(post.createdAt).toLocaleString()}
         </span>
       </article>

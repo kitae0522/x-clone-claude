@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useRegister } from '@/hooks/useAuth'
-import styles from './RegisterPage.module.css'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -47,16 +46,16 @@ export default function RegisterPage() {
   const error = validationError || (register.error ? register.error.message : '')
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>회원가입</h1>
-        <form onSubmit={handleSubmit} className={styles.form}>
+    <div className="flex min-h-screen items-center justify-center p-5">
+      <div className="w-full max-w-[400px] rounded-2xl border border-border bg-background p-8">
+        <h1 className="mb-6 text-center text-2xl font-bold">회원가입</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="email"
             placeholder="이메일"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={styles.input}
+            className="rounded-lg border border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none transition-colors focus:border-primary"
             required
           />
           <input
@@ -64,7 +63,7 @@ export default function RegisterPage() {
             placeholder="사용자 이름"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className={styles.input}
+            className="rounded-lg border border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none transition-colors focus:border-primary"
             required
           />
           <input
@@ -72,7 +71,7 @@ export default function RegisterPage() {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={styles.input}
+            className="rounded-lg border border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none transition-colors focus:border-primary"
             required
           />
           <input
@@ -80,20 +79,23 @@ export default function RegisterPage() {
             placeholder="비밀번호 확인"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className={styles.input}
+            className="rounded-lg border border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none transition-colors focus:border-primary"
             required
           />
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p className="m-0 text-[13px] text-destructive">{error}</p>}
           <button
             type="submit"
-            className={styles.button}
+            className="cursor-pointer rounded-full bg-primary py-3 text-[15px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={register.isPending}
           >
             {register.isPending ? '가입 중...' : '가입하기'}
           </button>
         </form>
-        <p className={styles.link}>
-          이미 계정이 있나요? <Link to="/login">로그인</Link>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          이미 계정이 있나요?{' '}
+          <Link to="/login" className="text-primary no-underline hover:underline">
+            로그인
+          </Link>
         </p>
       </div>
     </div>
