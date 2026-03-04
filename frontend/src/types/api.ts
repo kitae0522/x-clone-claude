@@ -32,8 +32,28 @@ export interface ProfileUser {
   bio: string
   profileImageUrl: string
   headerImageUrl: string
+  followersCount: number
+  followingCount: number
+  isFollowing: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface FollowUser {
+  id: string
+  username: string
+  displayName: string
+  bio: string
+  profileImageUrl: string
+}
+
+export interface FollowListResponse {
+  users: FollowUser[]
+  total: number
+}
+
+export interface FollowStatusResponse {
+  following: boolean
 }
 
 export interface RegisterRequest {
