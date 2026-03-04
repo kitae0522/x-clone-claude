@@ -12,6 +12,8 @@ type PostRepository interface {
 	Create(ctx context.Context, post *model.Post) error
 	FindByID(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error)
 	FindAll(ctx context.Context, limit, offset int) ([]model.PostWithAuthor, error)
+	FindByIDWithUser(ctx context.Context, id, userID uuid.UUID) (*model.PostWithAuthor, error)
+	FindAllWithUser(ctx context.Context, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error)
 }
 
 type postRepository struct {
@@ -36,7 +38,7 @@ func (r *postRepository) Create(ctx context.Context, post *model.Post) error {
 func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.content, p.visibility, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.content, p.visibility, p.like_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
@@ -44,7 +46,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.AuthorID, &p.Content, &visibility, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.Content, &visibility, &p.LikeCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 	)
 	if err != nil {
@@ -56,7 +58,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.content, p.visibility, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.content, p.visibility, p.like_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
@@ -74,8 +76,64 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.Content, &visibility, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.Content, &visibility, &p.LikeCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
+
+func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.UUID) (*model.PostWithAuthor, error) {
+	p := &model.PostWithAuthor{}
+	query := `
+		SELECT p.id, p.author_id, p.content, p.visibility, p.like_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		WHERE p.id = $1`
+
+	var visibility string
+	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
+		&p.ID, &p.AuthorID, &p.Content, &visibility, &p.LikeCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		&p.IsLiked,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.Visibility = model.Visibility(visibility)
+	return p, nil
+}
+
+func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.content, p.visibility, p.like_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		ORDER BY p.created_at DESC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := r.pool.Query(ctx, query, limit, offset, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		if err := rows.Scan(
+			&p.ID, &p.AuthorID, &p.Content, &visibility, &p.LikeCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+			&p.IsLiked,
 		); err != nil {
 			return nil, err
 		}

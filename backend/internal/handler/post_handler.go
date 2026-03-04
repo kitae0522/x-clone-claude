@@ -50,7 +50,9 @@ func (h *PostHandler) GetPostByID(c *fiber.Ctx) error {
 		return respondError(c, apperror.BadRequest("invalid post ID"))
 	}
 
-	resp, err := h.postService.GetPostByID(c.Context(), id)
+	userID := extractOptionalUserID(c)
+
+	resp, err := h.postService.GetPostByID(c.Context(), id, userID)
 	if err != nil {
 		return respondError(c, err)
 	}
@@ -62,7 +64,9 @@ func (h *PostHandler) GetPostByID(c *fiber.Ctx) error {
 }
 
 func (h *PostHandler) GetPosts(c *fiber.Ctx) error {
-	posts, err := h.postService.GetPosts(c.Context())
+	userID := extractOptionalUserID(c)
+
+	posts, err := h.postService.GetPosts(c.Context(), userID)
 	if err != nil {
 		return respondError(c, err)
 	}
@@ -71,4 +75,16 @@ func (h *PostHandler) GetPosts(c *fiber.Ctx) error {
 		Success: true,
 		Data:    posts,
 	})
+}
+
+func extractOptionalUserID(c *fiber.Ctx) *uuid.UUID {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return nil
+	}
+	id, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil
+	}
+	return &id
 }
