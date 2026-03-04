@@ -16,6 +16,8 @@ type PostService interface {
 	CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error)
 	GetPostByID(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (*dto.PostDetailResponse, error)
 	GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.PostDetailResponse, error)
+	CreateReply(ctx context.Context, parentID, authorID uuid.UUID, req dto.CreateReplyRequest) (*dto.PostDetailResponse, error)
+	ListReplies(ctx context.Context, parentID uuid.UUID, userID *uuid.UUID) ([]dto.PostDetailResponse, error)
 }
 
 type postService struct {
@@ -102,6 +104,71 @@ func (s *postService) GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.Po
 	responses := make([]dto.PostDetailResponse, len(posts))
 	for i, p := range posts {
 		responses[i] = dto.ToPostDetailResponse(p)
+	}
+	return responses, nil
+}
+
+func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.UUID, req dto.CreateReplyRequest) (*dto.PostDetailResponse, error) {
+	content := req.Content
+	if utf8.RuneCountInString(content) == 0 {
+		return nil, apperror.BadRequest("content must not be empty")
+	}
+	if utf8.RuneCountInString(content) > 280 {
+		return nil, apperror.BadRequest("content must not exceed 280 characters")
+	}
+
+	_, err := s.postRepo.FindByID(ctx, parentID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apperror.NotFound("parent post not found")
+		}
+		return nil, apperror.Internal("failed to verify parent post")
+	}
+
+	post := &model.Post{
+		AuthorID:   authorID,
+		ParentID:   &parentID,
+		Content:    content,
+		Visibility: model.VisibilityPublic,
+	}
+
+	if err := s.postRepo.CreateReply(ctx, post); err != nil {
+		return nil, apperror.Internal("failed to create reply")
+	}
+
+	result, err := s.postRepo.FindByID(ctx, post.ID)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve created reply")
+	}
+
+	resp := dto.ToPostDetailResponse(*result)
+	return &resp, nil
+}
+
+func (s *postService) ListReplies(ctx context.Context, parentID uuid.UUID, userID *uuid.UUID) ([]dto.PostDetailResponse, error) {
+	_, err := s.postRepo.FindByID(ctx, parentID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apperror.NotFound("post not found")
+		}
+		return nil, apperror.Internal("failed to verify post")
+	}
+
+	var replies []model.PostWithAuthor
+
+	if userID != nil {
+		replies, err = s.postRepo.FindRepliesByPostIDWithUser(ctx, parentID, *userID, 50, 0)
+	} else {
+		replies, err = s.postRepo.FindRepliesByPostID(ctx, parentID, 50, 0)
+	}
+
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve replies")
+	}
+
+	responses := make([]dto.PostDetailResponse, len(replies))
+	for i, r := range replies {
+		responses[i] = dto.ToPostDetailResponse(r)
 	}
 	return responses, nil
 }

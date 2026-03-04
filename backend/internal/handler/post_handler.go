@@ -77,6 +77,59 @@ func (h *PostHandler) GetPosts(c *fiber.Ctx) error {
 	})
 }
 
+func (h *PostHandler) CreateReply(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	authorID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	parentIDStr := c.Params("id")
+	parentID, err := uuid.Parse(parentIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	var req dto.CreateReplyRequest
+	if err := c.BodyParser(&req); err != nil {
+		return respondError(c, apperror.BadRequest("invalid request body"))
+	}
+
+	resp, err := h.postService.CreateReply(c.Context(), parentID, authorID, req)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(dto.APIResponse{
+		Success: true,
+		Data:    resp,
+	})
+}
+
+func (h *PostHandler) ListReplies(c *fiber.Ctx) error {
+	parentIDStr := c.Params("id")
+	parentID, err := uuid.Parse(parentIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	userID := extractOptionalUserID(c)
+
+	replies, err := h.postService.ListReplies(c.Context(), parentID, userID)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    replies,
+	})
+}
+
 func extractOptionalUserID(c *fiber.Ctx) *uuid.UUID {
 	userIDStr, ok := c.Locals("userID").(string)
 	if !ok {

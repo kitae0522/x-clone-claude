@@ -1,18 +1,23 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Heart } from 'lucide-react'
+import { Heart, MessageCircle } from 'lucide-react'
 import { usePostDetail } from '@/hooks/usePosts'
+import { useReplies } from '@/hooks/useReplies'
 import { useAuth } from '@/hooks/useAuthContext'
 import { useProfile } from '@/hooks/useProfile'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
 import { useLike } from '@/hooks/useLike'
 import ProfileHoverCard from '@/components/ProfileHoverCard'
+import ReplyForm from '@/components/ReplyForm'
+import ReplyCard from '@/components/ReplyCard'
 import { cn } from '@/lib/utils'
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: post, isLoading, error } = usePostDetail(id ?? '')
+  const postId = id ?? ''
+  const { data: post, isLoading, error } = usePostDetail(postId)
+  const { data: replies, isLoading: repliesLoading } = useReplies(postId)
   const { user: currentUser } = useAuth()
   const [isHoveringFollow, setIsHoveringFollow] = useState(false)
 
@@ -21,7 +26,7 @@ export default function PostDetailPage() {
   const { data: authorProfile } = useProfile(authorUsername, !!post && !isOwner)
   const follow = useFollow(authorUsername)
   const unfollow = useUnfollow(authorUsername)
-  const like = useLike(id ?? '', post?.isLiked ?? false)
+  const like = useLike(postId, post?.isLiked ?? false)
 
   if (isLoading) return <p className="px-4 py-8 text-center text-muted-foreground">Loading...</p>
   if (error) return <p className="px-4 py-8 text-center text-muted-foreground">Error: {error.message}</p>
@@ -135,8 +140,26 @@ export default function PostDetailPage() {
               {post.likeCount}
             </span>
           </button>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <MessageCircle size={20} />
+            <span className="text-sm">{post.replyCount}</span>
+          </div>
         </div>
       </article>
+
+      <ReplyForm postId={postId} />
+
+      <section>
+        {repliesLoading && (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">Loading replies...</p>
+        )}
+        {replies?.map((reply) => (
+          <ReplyCard key={reply.id} reply={reply} />
+        ))}
+        {replies && replies.length === 0 && !repliesLoading && (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No replies yet.</p>
+        )}
+      </section>
     </div>
   )
 }

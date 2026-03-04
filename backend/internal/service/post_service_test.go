@@ -56,6 +56,36 @@ func (m *mockPostRepo) FindAllWithUser(_ context.Context, limit, offset int, _ u
 	return m.FindAll(context.Background(), limit, offset)
 }
 
+func (m *mockPostRepo) CreateReply(_ context.Context, post *model.Post) error {
+	post.ID = uuid.New()
+	m.posts[post.ID] = &model.PostWithAuthor{
+		Post:                  *post,
+		AuthorUsername:        "replyuser",
+		AuthorDisplayName:     "Reply User",
+		AuthorProfileImageURL: "",
+	}
+	if post.ParentID != nil {
+		if parent, ok := m.posts[*post.ParentID]; ok {
+			parent.ReplyCount++
+		}
+	}
+	return nil
+}
+
+func (m *mockPostRepo) FindRepliesByPostID(_ context.Context, postID uuid.UUID, _, _ int) ([]model.PostWithAuthor, error) {
+	var replies []model.PostWithAuthor
+	for _, p := range m.posts {
+		if p.ParentID != nil && *p.ParentID == postID {
+			replies = append(replies, *p)
+		}
+	}
+	return replies, nil
+}
+
+func (m *mockPostRepo) FindRepliesByPostIDWithUser(_ context.Context, postID, _ uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
+	return m.FindRepliesByPostID(context.Background(), postID, limit, offset)
+}
+
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
 	svc := NewPostService(repo)
@@ -149,5 +179,187 @@ func TestGetPostByID_NotFound(t *testing.T) {
 	}
 	if appErr.Code != 404 {
 		t.Errorf("expected 404, got %d", appErr.Code)
+	}
+}
+
+func TestCreateReply(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		parentExist bool
+		wantErr     bool
+		wantCode    int
+	}{
+		{
+			name:        "success",
+			content:     "This is a reply",
+			parentExist: true,
+			wantErr:     false,
+		},
+		{
+			name:        "empty content",
+			content:     "",
+			parentExist: true,
+			wantErr:     true,
+			wantCode:    400,
+		},
+		{
+			name:        "content exceeds 280 chars",
+			content:     strings.Repeat("a", 281),
+			parentExist: true,
+			wantErr:     true,
+			wantCode:    400,
+		},
+		{
+			name:        "parent post not found",
+			content:     "Reply to nothing",
+			parentExist: false,
+			wantErr:     true,
+			wantCode:    404,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			svc := NewPostService(repo)
+
+			var parentID uuid.UUID
+			if tt.parentExist {
+				parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
+					Content: "Parent post",
+				})
+				parentID, _ = uuid.Parse(parent.ID)
+			} else {
+				parentID = uuid.New()
+			}
+
+			resp, err := svc.CreateReply(context.Background(), parentID, uuid.New(), dto.CreateReplyRequest{
+				Content: tt.content,
+			})
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				appErr, ok := err.(*apperror.AppError)
+				if !ok {
+					t.Fatalf("expected AppError, got %T", err)
+				}
+				if appErr.Code != tt.wantCode {
+					t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if resp.Content != tt.content {
+					t.Errorf("expected content %q, got %q", tt.content, resp.Content)
+				}
+				if resp.ParentID == nil || *resp.ParentID != parentID.String() {
+					t.Errorf("expected parentID %s, got %v", parentID, resp.ParentID)
+				}
+			}
+		})
+	}
+}
+
+func TestListReplies(t *testing.T) {
+	tests := []struct {
+		name        string
+		replyCount  int
+		parentExist bool
+		wantErr     bool
+		wantCode    int
+	}{
+		{
+			name:        "list replies for post with 2 replies",
+			replyCount:  2,
+			parentExist: true,
+			wantErr:     false,
+		},
+		{
+			name:        "list replies for post with no replies",
+			replyCount:  0,
+			parentExist: true,
+			wantErr:     false,
+		},
+		{
+			name:        "parent post not found",
+			replyCount:  0,
+			parentExist: false,
+			wantErr:     true,
+			wantCode:    404,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			svc := NewPostService(repo)
+
+			var parentID uuid.UUID
+			if tt.parentExist {
+				parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
+					Content: "Parent post",
+				})
+				parentID, _ = uuid.Parse(parent.ID)
+
+				for i := 0; i < tt.replyCount; i++ {
+					_, _ = svc.CreateReply(context.Background(), parentID, uuid.New(), dto.CreateReplyRequest{
+						Content: "Reply content",
+					})
+				}
+			} else {
+				parentID = uuid.New()
+			}
+
+			replies, err := svc.ListReplies(context.Background(), parentID, nil)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				appErr, ok := err.(*apperror.AppError)
+				if !ok {
+					t.Fatalf("expected AppError, got %T", err)
+				}
+				if appErr.Code != tt.wantCode {
+					t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if len(replies) != tt.replyCount {
+					t.Errorf("expected %d replies, got %d", tt.replyCount, len(replies))
+				}
+			}
+		})
+	}
+}
+
+func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
+	repo := newMockPostRepo()
+	svc := NewPostService(repo)
+
+	parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
+		Content: "Parent post",
+	})
+	parentID, _ := uuid.Parse(parent.ID)
+
+	_, _ = svc.CreateReply(context.Background(), parentID, uuid.New(), dto.CreateReplyRequest{
+		Content: "First reply",
+	})
+	_, _ = svc.CreateReply(context.Background(), parentID, uuid.New(), dto.CreateReplyRequest{
+		Content: "Second reply",
+	})
+
+	updated, err := svc.GetPostByID(context.Background(), parentID, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.ReplyCount != 2 {
+		t.Errorf("expected reply_count 2, got %d", updated.ReplyCount)
 	}
 }
