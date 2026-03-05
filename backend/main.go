@@ -55,6 +55,8 @@ func main() {
 	posts.Get("/", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPosts)
 	posts.Post("/", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreatePost)
 	posts.Get("/:id", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPostByID)
+	posts.Post("/:id/reply", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreateReply)
+	posts.Get("/:id/replies", middleware.OptionalAuth(cfg.JWTSecret), postHandler.ListReplies)
 	posts.Post("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Like)
 	posts.Delete("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Unlike)
 

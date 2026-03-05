@@ -1,69 +1,93 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { APIResponse, PostDetail, CreatePostRequest } from '@/types/api'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { APIResponse, PostDetail, CreatePostRequest } from "@/types/api";
 
 async function fetchPosts(): Promise<PostDetail[]> {
-  const res = await fetch('/api/posts')
+  const res = await fetch("/api/posts");
   if (!res.ok) {
-    throw new Error(`Failed to fetch posts: ${res.status}`)
+    throw new Error(`Failed to fetch posts: ${res.status}`);
   }
-  const json: APIResponse<PostDetail[]> = await res.json()
+  const json: APIResponse<PostDetail[]> = await res.json();
   if (!json.success) {
-    throw new Error(json.error ?? 'Unknown error')
+    throw new Error(json.error ?? "Unknown error");
   }
-  return json.data
+  return json.data;
 }
 
 async function fetchPostDetail(id: string): Promise<PostDetail> {
-  const res = await fetch(`/api/posts/${id}`)
+  const res = await fetch(`/api/posts/${id}`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch post: ${res.status}`)
+    throw new Error(`Failed to fetch post: ${res.status}`);
   }
-  const json: APIResponse<PostDetail> = await res.json()
+  const json: APIResponse<PostDetail> = await res.json();
   if (!json.success) {
-    throw new Error(json.error ?? 'Unknown error')
+    throw new Error(json.error ?? "Unknown error");
   }
-  return json.data
+  return json.data;
 }
 
 async function createPost(req: CreatePostRequest): Promise<PostDetail> {
-  const res = await fetch('/api/posts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const res = await fetch("/api/posts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
-  })
+  });
   if (!res.ok) {
-    const json = await res.json()
-    throw new Error(json.error ?? `Failed to create post: ${res.status}`)
+    const json = await res.json();
+    throw new Error(json.error ?? `Failed to create post: ${res.status}`);
   }
-  const json: APIResponse<PostDetail> = await res.json()
+  const json: APIResponse<PostDetail> = await res.json();
   if (!json.success) {
-    throw new Error(json.error ?? 'Unknown error')
+    throw new Error(json.error ?? "Unknown error");
   }
-  return json.data
+  return json.data;
 }
 
 export function usePosts() {
   return useQuery({
-    queryKey: ['posts'],
+    queryKey: ["posts"],
     queryFn: fetchPosts,
-  })
+  });
 }
 
 export function usePostDetail(id: string) {
   return useQuery({
-    queryKey: ['post', id],
+    queryKey: ["post", id],
     queryFn: () => fetchPostDetail(id),
     enabled: !!id,
-  })
+  });
+}
+
+const MAX_PARENT_DEPTH = 10;
+
+async function fetchParentChain(parentId: string): Promise<PostDetail[]> {
+  const chain: PostDetail[] = [];
+  let currentId: string | null = parentId;
+  let depth = 0;
+
+  while (currentId && depth++ < MAX_PARENT_DEPTH) {
+    const post = await fetchPostDetail(currentId);
+    chain.unshift(post);
+    currentId = post.parentId;
+  }
+
+  return chain;
+}
+
+export function useParentChain(parentId: string | null) {
+  return useQuery({
+    queryKey: ["post", parentId, "parentChain"],
+    queryFn: () => fetchParentChain(parentId!),
+    enabled: !!parentId,
+  });
 }
 
 export function useCreatePost() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createPost,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] })
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
-  })
+  });
 }

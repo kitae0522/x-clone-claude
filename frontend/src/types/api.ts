@@ -89,13 +89,20 @@ export interface PostAuthor {
 export interface PostDetail {
   id: string
   authorId: string
+  parentId: string | null
   content: string
   visibility: 'public' | 'friends' | 'private'
   author: PostAuthor
   likeCount: number
+  replyCount: number
   isLiked: boolean
+  topReplies: PostDetail[] | null
   createdAt: string
   updatedAt: string
+}
+
+export interface CreateReplyRequest {
+  content: string
 }
 
 export interface LikeStatusResponse {

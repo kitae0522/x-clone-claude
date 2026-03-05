@@ -25,15 +25,22 @@ type PostResponse struct {
 }
 
 type PostDetailResponse struct {
-	ID         string     `json:"id"`
-	AuthorID   string     `json:"authorId"`
-	Content    string     `json:"content"`
-	Visibility string     `json:"visibility"`
-	Author     PostAuthor `json:"author"`
-	LikeCount  int        `json:"likeCount"`
-	IsLiked    bool       `json:"isLiked"`
-	CreatedAt  string     `json:"createdAt"`
-	UpdatedAt  string     `json:"updatedAt"`
+	ID         string               `json:"id"`
+	AuthorID   string               `json:"authorId"`
+	ParentID   *string              `json:"parentId"`
+	Content    string               `json:"content"`
+	Visibility string               `json:"visibility"`
+	Author     PostAuthor           `json:"author"`
+	LikeCount  int                  `json:"likeCount"`
+	ReplyCount int                  `json:"replyCount"`
+	IsLiked    bool                 `json:"isLiked"`
+	TopReplies []PostDetailResponse `json:"topReplies"`
+	CreatedAt  string               `json:"createdAt"`
+	UpdatedAt  string               `json:"updatedAt"`
+}
+
+type CreateReplyRequest struct {
+	Content string `json:"content"`
 }
 
 func ToPostResponse(p model.Post) PostResponse {
@@ -48,9 +55,16 @@ func ToPostResponse(p model.Post) PostResponse {
 }
 
 func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
+	var parentID *string
+	if p.ParentID != nil {
+		s := p.ParentID.String()
+		parentID = &s
+	}
+
 	return PostDetailResponse{
 		ID:         p.ID.String(),
 		AuthorID:   p.AuthorID.String(),
+		ParentID:   parentID,
 		Content:    p.Content,
 		Visibility: string(p.Visibility),
 		Author: PostAuthor{
@@ -58,9 +72,10 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 			DisplayName:     p.AuthorDisplayName,
 			ProfileImageURL: p.AuthorProfileImageURL,
 		},
-		LikeCount: p.LikeCount,
-		IsLiked:   p.IsLiked,
-		CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		LikeCount:  p.LikeCount,
+		ReplyCount: p.ReplyCount,
+		IsLiked:    p.IsLiked,
+		CreatedAt:  p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:  p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }

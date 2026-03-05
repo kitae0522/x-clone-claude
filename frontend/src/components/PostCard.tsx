@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart } from 'lucide-react'
+import { Heart, MessageCircle } from 'lucide-react'
 import type { PostDetail } from '@/types/api'
 import { useAuth } from '@/hooks/useAuthContext'
 import { useProfile } from '@/hooks/useProfile'
@@ -131,6 +131,10 @@ function PostCard({ post }: PostCardProps) {
         <span className="text-[13px] text-muted-foreground">
           {new Date(post.createdAt).toLocaleString()}
         </span>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <MessageCircle size={16} />
+          <span className="text-[13px]">{post.replyCount}</span>
+        </div>
         <button
           onClick={handleLikeClick}
           className="group flex cursor-pointer items-center gap-1 border-none bg-transparent p-0"

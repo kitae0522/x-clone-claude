@@ -17,9 +17,11 @@ const (
 type Post struct {
 	ID         uuid.UUID
 	AuthorID   uuid.UUID
+	ParentID   *uuid.UUID
 	Content    string
 	Visibility Visibility
 	LikeCount  int
+	ReplyCount int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
