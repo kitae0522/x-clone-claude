@@ -96,6 +96,7 @@ export interface PostDetail {
   likeCount: number
   replyCount: number
   isLiked: boolean
+  topReplies: PostDetail[] | null
   createdAt: string
   updatedAt: string
 }

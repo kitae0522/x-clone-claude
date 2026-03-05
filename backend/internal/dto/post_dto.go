@@ -25,17 +25,18 @@ type PostResponse struct {
 }
 
 type PostDetailResponse struct {
-	ID         string     `json:"id"`
-	AuthorID   string     `json:"authorId"`
-	ParentID   *string    `json:"parentId"`
-	Content    string     `json:"content"`
-	Visibility string     `json:"visibility"`
-	Author     PostAuthor `json:"author"`
-	LikeCount  int        `json:"likeCount"`
-	ReplyCount int        `json:"replyCount"`
-	IsLiked    bool       `json:"isLiked"`
-	CreatedAt  string     `json:"createdAt"`
-	UpdatedAt  string     `json:"updatedAt"`
+	ID         string               `json:"id"`
+	AuthorID   string               `json:"authorId"`
+	ParentID   *string              `json:"parentId"`
+	Content    string               `json:"content"`
+	Visibility string               `json:"visibility"`
+	Author     PostAuthor           `json:"author"`
+	LikeCount  int                  `json:"likeCount"`
+	ReplyCount int                  `json:"replyCount"`
+	IsLiked    bool                 `json:"isLiked"`
+	TopReplies []PostDetailResponse `json:"topReplies"`
+	CreatedAt  string               `json:"createdAt"`
+	UpdatedAt  string               `json:"updatedAt"`
 }
 
 type CreateReplyRequest struct {

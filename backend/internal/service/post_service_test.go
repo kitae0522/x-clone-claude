@@ -86,6 +86,19 @@ func (m *mockPostRepo) FindRepliesByPostIDWithUser(_ context.Context, postID, _ 
 	return m.FindRepliesByPostID(context.Background(), postID, limit, offset)
 }
 
+func (m *mockPostRepo) FindAuthorReplyByPostID(_ context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error) {
+	for _, p := range m.posts {
+		if p.ParentID != nil && *p.ParentID == postID && p.AuthorID == authorID {
+			return p, nil
+		}
+	}
+	return nil, pgx.ErrNoRows
+}
+
+func (m *mockPostRepo) FindAuthorReplyByPostIDWithUser(_ context.Context, postID, authorID, _ uuid.UUID) (*model.PostWithAuthor, error) {
+	return m.FindAuthorReplyByPostID(context.Background(), postID, authorID)
+}
+
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
 	svc := NewPostService(repo)

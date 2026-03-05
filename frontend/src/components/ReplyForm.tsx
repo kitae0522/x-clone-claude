@@ -1,27 +1,25 @@
-import { useState } from 'react'
-import { useCreateReply } from '@/hooks/useReplies'
-import { cn } from '@/lib/utils'
+import { useState } from "react";
+import { useCreateReply } from "@/hooks/useReplies";
+import { cn } from "@/lib/utils";
 
-const MAX_LENGTH = 280
+const MAX_LENGTH = 280;
 
 interface ReplyFormProps {
-  postId: string
+  postId: string;
+  parentPostId?: string;
 }
 
-export default function ReplyForm({ postId }: ReplyFormProps) {
-  const [content, setContent] = useState('')
-  const { mutate, isPending } = useCreateReply(postId)
+export default function ReplyForm({ postId, parentPostId }: ReplyFormProps) {
+  const [content, setContent] = useState("");
+  const { mutate, isPending } = useCreateReply(postId, parentPostId);
 
-  const remaining = MAX_LENGTH - [...content].length
+  const remaining = MAX_LENGTH - [...content].length;
 
   function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (remaining < 0 || content.trim().length === 0 || isPending) return
+    e.preventDefault();
+    if (remaining < 0 || content.trim().length === 0 || isPending) return;
 
-    mutate(
-      { content },
-      { onSuccess: () => setContent('') },
-    )
+    mutate({ content }, { onSuccess: () => setContent("") });
   }
 
   return (
@@ -31,15 +29,15 @@ export default function ReplyForm({ postId }: ReplyFormProps) {
         placeholder="Post your reply"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        maxLength={300}
+        maxLength={MAX_LENGTH}
         rows={2}
       />
       <div className="flex items-center justify-end gap-3 border-t border-border pt-2">
         <span
           className={cn(
-            'text-sm text-muted-foreground',
-            remaining < 0 && 'text-destructive',
-            remaining >= 0 && remaining <= 20 && 'text-warning',
+            "text-sm text-muted-foreground",
+            remaining < 0 && "text-destructive",
+            remaining >= 0 && remaining <= 20 && "text-warning",
           )}
         >
           {remaining}
@@ -49,9 +47,9 @@ export default function ReplyForm({ postId }: ReplyFormProps) {
           className="cursor-pointer rounded-full bg-primary px-4 py-1.5 text-[13px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={remaining < 0 || content.trim().length === 0 || isPending}
         >
-          {isPending ? 'Replying...' : 'Reply'}
+          {isPending ? "Replying..." : "Reply"}
         </button>
       </div>
     </form>
-  )
+  );
 }

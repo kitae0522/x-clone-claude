@@ -17,6 +17,13 @@
 - 대규모 데이터에서 성능 우위 (O(1) vs O(n))
 **트레이드오프**: 특정 페이지로 직접 이동 불가
 
+## 2026-03-05 — Threads 스타일 author thread continuation 채택
+**상황**: Post Detail 페이지 진입 시 depth별 reply를 개별 요청하여 110+건 API 호출 발생
+**결정**: `GET /api/posts/:id` 응답에 depth 1 전체 replies + 작성자 자기 답글 chain(author thread) 포함
+**방식**: 각 reply에 대해 동일 작성자가 이어 쓴 답글만 재귀적으로 chain (Meta Threads 방식)
+**제한**: `maxAuthorThreadDepth = 10` (무한 chain 방지)
+**트레이드오프**: engagement 기반 정렬 포기 → 작성자의 대화 맥락 보존 우선. reply 클릭으로 detail 페이지 이동하여 다른 사람의 nested reply 확인
+
 ## 2026-03-04 — 답글(Reply) 자기참조 구조 채택
 **상황**: 답글을 별도 테이블로 분리할지, posts 테이블에 parent_id 자기참조로 처리할지
 **결정**: posts 테이블에 `parent_id` (nullable, self-referencing FK) 추가

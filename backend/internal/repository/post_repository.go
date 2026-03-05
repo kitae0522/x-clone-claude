@@ -18,6 +18,8 @@ type PostRepository interface {
 	CreateReply(ctx context.Context, post *model.Post) error
 	FindRepliesByPostID(ctx context.Context, postID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error)
 	FindRepliesByPostIDWithUser(ctx context.Context, postID, userID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error)
+	FindAuthorReplyByPostID(ctx context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error)
+	FindAuthorReplyByPostIDWithUser(ctx context.Context, postID, authorID, userID uuid.UUID) (*model.PostWithAuthor, error)
 }
 
 type postRepository struct {
@@ -209,6 +211,54 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 		replies = append(replies, p)
 	}
 	return replies, rows.Err()
+}
+
+func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error) {
+	p := &model.PostWithAuthor{}
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		WHERE p.parent_id = $1 AND p.author_id = $2
+		ORDER BY p.created_at ASC
+		LIMIT 1`
+
+	var visibility string
+	err := r.pool.QueryRow(ctx, query, postID, authorID).Scan(
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.Visibility = model.Visibility(visibility)
+	return p, nil
+}
+
+func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, postID, authorID, userID uuid.UUID) (*model.PostWithAuthor, error) {
+	p := &model.PostWithAuthor{}
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		WHERE p.parent_id = $1 AND p.author_id = $2
+		ORDER BY p.created_at ASC
+		LIMIT 1`
+
+	var visibility string
+	err := r.pool.QueryRow(ctx, query, postID, authorID, userID).Scan(
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		&p.IsLiked,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.Visibility = model.Visibility(visibility)
+	return p, nil
 }
 
 func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID, userID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
