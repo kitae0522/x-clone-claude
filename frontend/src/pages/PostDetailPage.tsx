@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Share, ArrowLeft } from "lucide-react";
 import { usePostDetail, useParentChain } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
+import { formatRelativeTime } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,9 @@ export default function PostDetailPage() {
 
   if (isLoading)
     return (
-      <p className="px-4 py-8 text-center text-muted-foreground">Loading...</p>
+      <div className="flex justify-center py-8">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
     );
   if (error) {
     console.error("PostDetailPage error:", error);
@@ -48,7 +51,7 @@ export default function PostDetailPage() {
   if (!post)
     return (
       <p className="px-4 py-8 text-center text-muted-foreground">
-        Post not found.
+        게시글을 찾을 수 없습니다.
       </p>
     );
 
@@ -66,16 +69,17 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[600px]">
+    <>
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/65 px-4 py-3 backdrop-blur-xl">
         <button
-          className="cursor-pointer rounded-full border-none bg-none p-1 px-2 text-xl text-foreground transition-colors hover:bg-foreground/10"
+          className="cursor-pointer rounded-full border-none bg-transparent p-2 text-foreground transition-colors hover:bg-foreground/10"
           onClick={() => navigate(-1)}
         >
-          &larr;
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl font-bold">Post</h1>
+        <h1 className="text-xl font-bold">게시물</h1>
       </header>
+
       {parentChain && parentChain.length > 0 && (
         <div className="border-b border-border">
           {parentChain.map((parent) => (
@@ -86,11 +90,16 @@ export default function PostDetailPage() {
 
       <article className="p-4">
         <div className="mb-4 flex items-center gap-3">
-          <UserAvatar
-            profileImageUrl={post.author.profileImageUrl}
-            displayName={post.author.displayName || post.author.username}
-            size="lg"
-          />
+          <div
+            className="shrink-0 cursor-pointer"
+            onClick={() => navigate(`/${post.author.username}`)}
+          >
+            <UserAvatar
+              profileImageUrl={post.author.profileImageUrl}
+              displayName={post.author.displayName || post.author.username}
+              size="lg"
+            />
+          </div>
           <div className="flex flex-1 flex-col">
             <ProfileHoverCard
               handle={post.author.username}
@@ -140,17 +149,55 @@ export default function PostDetailPage() {
             </Button>
           )}
         </div>
+
         <p className="mb-4 text-[17px] leading-relaxed text-foreground">
           {post.content}
         </p>
-        <div className="flex items-center gap-4 border-t border-border pt-4">
-          <span className="text-sm text-muted-foreground">
-            {new Date(post.createdAt).toLocaleString()}
-          </span>
+
+        <div className="text-[15px] text-muted-foreground">
+          {formatRelativeTime(post.createdAt)} ·{" "}
+          {new Date(post.createdAt).toLocaleString("ko-KR")}
+        </div>
+
+        {/* Stats */}
+        {(post.likeCount > 0 || post.replyCount > 0) && (
+          <div className="mt-3 flex gap-4 border-t border-border pt-3 text-sm">
+            {post.replyCount > 0 && (
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">{post.replyCount}</strong>{" "}
+                답글
+              </span>
+            )}
+            {post.likeCount > 0 && (
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">{post.likeCount}</strong>{" "}
+                좋아요
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-around border-t border-border pt-1 mt-3">
+          <button
+            onClick={() => {}}
+            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
+          >
+            <MessageCircle
+              size={20}
+              className="text-muted-foreground transition-colors group-hover:text-primary"
+            />
+          </button>
+          <button className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-green-500/10">
+            <Repeat2
+              size={20}
+              className="text-muted-foreground transition-colors group-hover:text-green-500"
+            />
+          </button>
           <button
             onClick={handleLikeClick}
             disabled={like.isPending}
-            className="group flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 disabled:opacity-50"
+            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-red-500/10 disabled:opacity-50"
           >
             <Heart
               size={20}
@@ -161,19 +208,13 @@ export default function PostDetailPage() {
                   : "text-muted-foreground",
               )}
             />
-            <span
-              className={cn(
-                "text-sm transition-colors group-hover:text-red-500",
-                post.isLiked ? "text-red-500" : "text-muted-foreground",
-              )}
-            >
-              {post.likeCount}
-            </span>
           </button>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <MessageCircle size={20} />
-            <span className="text-sm">{post.replyCount}</span>
-          </div>
+          <button className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10">
+            <Share
+              size={20}
+              className="text-muted-foreground transition-colors group-hover:text-primary"
+            />
+          </button>
         </div>
       </article>
 
@@ -190,10 +231,10 @@ export default function PostDetailPage() {
         ))}
         {(!post.topReplies || post.topReplies.length === 0) && (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            No replies yet.
+            아직 답글이 없습니다.
           </p>
         )}
       </section>
-    </div>
+    </>
   );
 }
