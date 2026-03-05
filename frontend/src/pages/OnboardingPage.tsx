@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Feather } from 'lucide-react'
 import { useUpdateProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuthContext'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -25,42 +29,45 @@ export default function OnboardingPage() {
     )
   }
 
-  function handleSkip() {
-    navigate('/')
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center p-5">
-      <div className="w-full max-w-[400px] rounded-2xl border border-border bg-background p-8">
-        <h1 className="mb-2 text-center text-2xl font-bold">환영합니다!</h1>
-        <p className="mb-6 text-center text-sm text-muted-foreground">표시할 이름을 설정해주세요.</p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="표시 이름"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="rounded-lg border border-border bg-transparent px-4 py-3 text-[15px] text-foreground outline-none transition-colors focus:border-primary"
-            maxLength={50}
-            autoFocus
-          />
+    <div className="flex min-h-dvh items-center justify-center p-5">
+      <div className="w-full max-w-[400px]">
+        <div className="mb-8 flex justify-center">
+          <Feather className="h-10 w-10 text-primary" />
+        </div>
+        <h1 className="mb-2 text-center text-[28px] font-extrabold tracking-tight">환영합니다!</h1>
+        <p className="mb-8 text-center text-sm text-muted-foreground">표시할 이름을 설정해주세요.</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="displayName">표시 이름</Label>
+            <Input
+              id="displayName"
+              type="text"
+              placeholder="이름을 입력하세요"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={50}
+              autoFocus
+            />
+          </div>
           {updateProfile.error && (
-            <p className="m-0 text-[13px] text-destructive">{updateProfile.error.message}</p>
+            <p className="text-[13px] text-destructive">{updateProfile.error.message}</p>
           )}
-          <button
+          <Button
             type="submit"
-            className="cursor-pointer rounded-full bg-primary py-3 text-[15px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 py-6 text-[15px] font-bold"
             disabled={updateProfile.isPending || !displayName.trim()}
           >
             {updateProfile.isPending ? '저장 중...' : '시작하기'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            onClick={handleSkip}
-            className="cursor-pointer rounded-full border border-muted-foreground/50 bg-transparent py-3 text-[15px] font-bold text-foreground transition-colors hover:bg-foreground/10"
+            onClick={() => navigate('/')}
+            variant="outline"
+            className="py-6 text-[15px] font-bold"
           >
             나중에 하기
-          </button>
+          </Button>
         </form>
       </div>
     </div>

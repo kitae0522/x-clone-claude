@@ -58,11 +58,19 @@ export default function ReplyCard({
         )}
       >
         <div className="flex flex-col items-center">
-          <UserAvatar
-            profileImageUrl={reply.author.profileImageUrl}
-            displayName={reply.author.displayName || reply.author.username}
-            size="md"
-          />
+          <div
+            className="shrink-0 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/${reply.author.username}`);
+            }}
+          >
+            <UserAvatar
+              profileImageUrl={reply.author.profileImageUrl}
+              displayName={reply.author.displayName || reply.author.username}
+              size="md"
+            />
+          </div>
           {showLine && (
             <div className="mt-1 w-0.5 flex-1 bg-border" />
           )}
