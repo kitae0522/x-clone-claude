@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuthContext'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
 import EditProfileModal from '@/components/EditProfileModal'
 import FollowListModal from '@/components/FollowListModal'
-import { cn } from '@/lib/utils'
+import UserAvatar from '@/components/UserAvatar'
+import { Button } from '@/components/ui/button'
 
 export default function ProfilePage() {
   const { handle } = useParams<{ handle: string }>()
@@ -87,35 +88,35 @@ export default function ProfilePage() {
 
       <div className="relative px-4">
         <div className="-mt-10 flex items-start justify-between">
-          {profile.profileImageUrl ? (
-            <img
-              src={profile.profileImageUrl}
-              alt={profile.displayName}
-              className="h-20 w-20 rounded-full border-4 border-background object-cover"
-            />
-          ) : (
-            <div className="h-20 w-20 rounded-full border-4 border-background bg-muted-foreground/30" />
-          )}
+          <UserAvatar
+            profileImageUrl={profile.profileImageUrl}
+            displayName={profile.displayName}
+            size="2xl"
+            className="border-4 border-background"
+          />
           {isOwner ? (
-            <button
+            <Button
               onClick={() => setShowEditModal(true)}
-              className="mt-12 cursor-pointer rounded-full border border-muted-foreground/50 bg-transparent px-4 py-1.5 text-sm font-bold text-foreground transition-colors hover:bg-foreground/10"
+              variant="outline"
+              size="sm"
+              className="mt-12 cursor-pointer rounded-full"
             >
               프로필 수정
-            </button>
+            </Button>
           ) : currentUser ? (
-            <button
+            <Button
               onClick={handleFollowClick}
               onMouseEnter={() => setIsHoveringFollow(true)}
               onMouseLeave={() => setIsHoveringFollow(false)}
-              className={cn(
-                'mt-12 min-w-[100px] cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50',
+              variant={
                 profile.isFollowing
                   ? isHoveringFollow
-                    ? 'border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
-                    : 'border border-muted-foreground/50 bg-transparent text-foreground'
-                  : 'border-none bg-foreground text-background hover:bg-foreground/90',
-              )}
+                    ? 'follow-danger'
+                    : 'follow-active'
+                  : 'follow'
+              }
+              size="sm"
+              className="mt-12 min-w-[100px] cursor-pointer"
               disabled={follow.isPending || unfollow.isPending}
             >
               {profile.isFollowing
@@ -123,7 +124,7 @@ export default function ProfilePage() {
                   ? '언팔로우'
                   : '팔로잉'
                 : '팔로우'}
-            </button>
+            </Button>
           ) : null}
         </div>
 

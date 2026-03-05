@@ -25,7 +25,18 @@
 ## 차단된 항목
 - (없음)
 
+## Phase 5: UI 컴포넌트 시스템 (완료)
+- [x] shadcn/ui 컴포넌트 설치 (Input, Textarea, Avatar, Card, Dialog, Sonner, Form, Label)
+- [x] Avatar size variant 확장 + UserAvatar 래퍼 컴포넌트
+- [x] Button follow variant 추가
+- [x] Toast(Sonner) 설정
+- [x] 기존 컴포넌트 마이그레이션 (Avatar 6곳, Dialog 2곳, Input/Textarea, Button)
+- [x] Toast 알림 연동 (ComposeForm, ReplyForm, EditProfileModal)
+- [x] ComponentShowcasePage (/dev/components)
+- [x] orphan .module.css 파일 정리 (#18)
+
 ## 최근 변경 로그
+- 2026-03-06: 이슈 #18 shadcn/ui 기반 공통 UI 컴포넌트 시스템 구축
 - 2026-03-05: 이슈 #28 Post Detail API nested replies 최적화 (110+→1 요청)
 - 2026-03-05: 이슈 #27 대댓글 depth 2 자동 펼침 + 부모 스레드 체인 표시 구현
 - 2026-03-04: 이슈 #26 대댓글(중첩 답글) + 답글 좋아요 Optimistic UI 구현

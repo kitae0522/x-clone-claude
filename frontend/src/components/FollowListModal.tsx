@@ -1,5 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useFollowers, useFollowing } from '@/hooks/useFollow'
+import UserAvatar from '@/components/UserAvatar'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Props {
   handle: string
@@ -28,23 +35,11 @@ export default function FollowListModal({ handle, type, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-muted-foreground/40"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[600px] max-h-[90vh] overflow-y-auto rounded-2xl bg-background"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 z-[1] flex h-[53px] items-center gap-4 bg-background/65 px-4 backdrop-blur-xl">
-          <button
-            onClick={onClose}
-            className="cursor-pointer rounded-full border-none bg-transparent p-2 text-lg text-foreground transition-colors hover:bg-foreground/10"
-          >
-            &times;
-          </button>
-          <span className="text-xl font-bold">{title}</span>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-h-[90vh] max-w-[600px] overflow-y-auto p-0">
+        <DialogHeader className="sticky top-0 z-[1] bg-background/65 px-4 py-3 backdrop-blur-xl">
+          <DialogTitle className="text-xl">{title}</DialogTitle>
+        </DialogHeader>
 
         {isLoading ? (
           <p className="px-4 py-8 text-center text-muted-foreground">불러오는 중...</p>
@@ -62,15 +57,11 @@ export default function FollowListModal({ handle, type, onClose }: Props) {
                 className="flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-foreground/[0.03]"
                 onClick={() => handleUserClick(user.username)}
               >
-                {user.profileImageUrl ? (
-                  <img
-                    src={user.profileImageUrl}
-                    alt={user.displayName}
-                    className="h-10 w-10 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-10 w-10 shrink-0 rounded-full bg-muted-foreground/30" />
-                )}
+                <UserAvatar
+                  profileImageUrl={user.profileImageUrl}
+                  displayName={user.displayName}
+                  size="md"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="text-[15px] font-bold">{user.displayName}</div>
                   <div className="text-[15px] text-muted-foreground">@{user.username}</div>
@@ -80,7 +71,7 @@ export default function FollowListModal({ handle, type, onClose }: Props) {
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

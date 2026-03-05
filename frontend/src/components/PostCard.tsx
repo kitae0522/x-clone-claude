@@ -7,6 +7,8 @@ import { useProfile } from '@/hooks/useProfile'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
 import { useLike } from '@/hooks/useLike'
 import ProfileHoverCard from '@/components/ProfileHoverCard'
+import UserAvatar from '@/components/UserAvatar'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface PostCardProps {
@@ -63,15 +65,11 @@ function PostCard({ post }: PostCardProps) {
     >
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          {post.author.profileImageUrl ? (
-            <img
-              src={post.author.profileImageUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-border" />
-          )}
+          <UserAvatar
+            profileImageUrl={post.author.profileImageUrl}
+            displayName={post.author.displayName || post.author.username}
+            size="md"
+          />
           <div>
             <ProfileHoverCard
               handle={post.author.username}
@@ -100,18 +98,19 @@ function PostCard({ post }: PostCardProps) {
         </div>
         <div className="flex items-center gap-2">
           {!isOwner && currentUser && authorProfile && (
-            <button
+            <Button
               onClick={handleFollowClick}
               onMouseEnter={() => setIsHoveringFollow(true)}
               onMouseLeave={() => setIsHoveringFollow(false)}
-              className={cn(
-                'min-w-[90px] cursor-pointer rounded-full px-3 py-1 text-[13px] font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50',
+              variant={
                 authorProfile.isFollowing
                   ? isHoveringFollow
-                    ? 'border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
-                    : 'border border-muted-foreground/50 bg-transparent text-foreground'
-                  : 'border-none bg-foreground text-background hover:bg-foreground/90',
-              )}
+                    ? 'follow-danger'
+                    : 'follow-active'
+                  : 'follow'
+              }
+              size="sm"
+              className="min-w-[90px] cursor-pointer"
               disabled={follow.isPending || unfollow.isPending}
             >
               {authorProfile.isFollowing
@@ -119,7 +118,7 @@ function PostCard({ post }: PostCardProps) {
                   ? '언팔로우'
                   : '팔로잉'
                 : '팔로우'}
-            </button>
+            </Button>
           )}
           <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', visibilityClasses[post.visibility])}>
             {visibilityLabel[post.visibility]}
