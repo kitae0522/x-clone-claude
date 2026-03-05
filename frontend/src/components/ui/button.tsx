@@ -18,6 +18,12 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        follow:
+          "rounded-full border-none bg-foreground text-background font-bold hover:bg-foreground/90",
+        "follow-active":
+          "rounded-full border border-muted-foreground/50 bg-transparent text-foreground font-bold",
+        "follow-danger":
+          "rounded-full border border-destructive/50 bg-transparent text-destructive font-bold hover:bg-destructive/10",
       },
       size: {
         default: "h-10 px-4 py-2",

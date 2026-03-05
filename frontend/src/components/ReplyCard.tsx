@@ -5,6 +5,7 @@ import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
+import UserAvatar from "@/components/UserAvatar";
 import ReplyForm from "@/components/ReplyForm";
 import { cn } from "@/lib/utils";
 
@@ -57,15 +58,11 @@ export default function ReplyCard({
         )}
       >
         <div className="flex flex-col items-center">
-          {reply.author.profileImageUrl ? (
-            <img
-              src={reply.author.profileImageUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-border" />
-          )}
+          <UserAvatar
+            profileImageUrl={reply.author.profileImageUrl}
+            displayName={reply.author.displayName || reply.author.username}
+            size="md"
+          />
           {showLine && (
             <div className="mt-1 w-0.5 flex-1 bg-border" />
           )}

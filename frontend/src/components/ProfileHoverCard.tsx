@@ -2,7 +2,8 @@ import { useState, useRef, useCallback, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProfile } from '@/hooks/useProfile'
 import { useFollow, useUnfollow } from '@/hooks/useFollow'
-import { cn } from '@/lib/utils'
+import UserAvatar from '@/components/UserAvatar'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   handle: string
@@ -59,29 +60,26 @@ export default function ProfileHoverCard({ handle, currentUsername, children }: 
                 navigate(`/${profile.username}`)
               }}
             >
-              {profile.profileImageUrl ? (
-                <img
-                  src={profile.profileImageUrl}
-                  alt={profile.displayName}
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-full bg-muted-foreground/30" />
-              )}
+              <UserAvatar
+                profileImageUrl={profile.profileImageUrl}
+                displayName={profile.displayName}
+                size="xl"
+              />
             </div>
             {!isOwner && (
-              <button
+              <Button
                 onClick={handleFollowClick}
                 onMouseEnter={() => setIsHoveringFollow(true)}
                 onMouseLeave={() => setIsHoveringFollow(false)}
-                className={cn(
-                  'min-w-[90px] cursor-pointer rounded-full px-3 py-1.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50',
+                variant={
                   profile.isFollowing
                     ? isHoveringFollow
-                      ? 'border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
-                      : 'border border-muted-foreground/50 bg-transparent text-foreground'
-                    : 'border-none bg-foreground text-background hover:bg-foreground/90',
-                )}
+                      ? 'follow-danger'
+                      : 'follow-active'
+                    : 'follow'
+                }
+                size="sm"
+                className="min-w-[90px] cursor-pointer"
                 disabled={follow.isPending || unfollow.isPending}
               >
                 {profile.isFollowing
@@ -89,7 +87,7 @@ export default function ProfileHoverCard({ handle, currentUsername, children }: 
                     ? '언팔로우'
                     : '팔로잉'
                   : '팔로우'}
-              </button>
+              </Button>
             )}
           </div>
           <div className="mt-2">

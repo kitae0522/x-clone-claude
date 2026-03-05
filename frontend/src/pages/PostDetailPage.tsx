@@ -7,6 +7,8 @@ import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
+import UserAvatar from "@/components/UserAvatar";
+import { Button } from "@/components/ui/button";
 import ReplyForm from "@/components/ReplyForm";
 import ReplyCard from "@/components/ReplyCard";
 import ParentPostCard from "@/components/ParentPostCard";
@@ -84,15 +86,11 @@ export default function PostDetailPage() {
 
       <article className="p-4">
         <div className="mb-4 flex items-center gap-3">
-          {post.author.profileImageUrl ? (
-            <img
-              src={post.author.profileImageUrl}
-              alt=""
-              className="h-12 w-12 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-12 w-12 rounded-full bg-border" />
-          )}
+          <UserAvatar
+            profileImageUrl={post.author.profileImageUrl}
+            displayName={post.author.displayName || post.author.username}
+            size="lg"
+          />
           <div className="flex flex-1 flex-col">
             <ProfileHoverCard
               handle={post.author.username}
@@ -119,18 +117,19 @@ export default function PostDetailPage() {
             </span>
           </div>
           {!isOwner && currentUser && authorProfile && (
-            <button
+            <Button
               onClick={handleFollowClick}
               onMouseEnter={() => setIsHoveringFollow(true)}
               onMouseLeave={() => setIsHoveringFollow(false)}
-              className={cn(
-                "min-w-[90px] cursor-pointer rounded-full px-3 py-1.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50",
+              variant={
                 authorProfile.isFollowing
                   ? isHoveringFollow
-                    ? "border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
-                    : "border border-muted-foreground/50 bg-transparent text-foreground"
-                  : "border-none bg-foreground text-background hover:bg-foreground/90",
-              )}
+                    ? "follow-danger"
+                    : "follow-active"
+                  : "follow"
+              }
+              size="sm"
+              className="min-w-[90px] cursor-pointer"
               disabled={follow.isPending || unfollow.isPending}
             >
               {authorProfile.isFollowing
@@ -138,7 +137,7 @@ export default function PostDetailPage() {
                   ? "언팔로우"
                   : "팔로잉"
                 : "팔로우"}
-            </button>
+            </Button>
           )}
         </div>
         <p className="mb-4 text-[17px] leading-relaxed text-foreground">

@@ -9,6 +9,8 @@ import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
 import PostDetailPage from '@/pages/PostDetailPage'
 import OnboardingPage from '@/pages/OnboardingPage'
+import ComponentShowcasePage from '@/pages/ComponentShowcasePage'
+import { Toaster } from '@/components/ui/sonner'
 
 const queryClient = new QueryClient()
 
@@ -58,6 +60,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/dev/components" element={<ComponentShowcasePage />} />
             <Route
               path="/:handle"
               element={
@@ -67,6 +70,7 @@ function App() {
               }
             />
           </Routes>
+          <Toaster richColors position="bottom-right" />
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
