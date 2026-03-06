@@ -49,7 +49,9 @@ export default function PollDisplay({ poll, postId }: PollDisplayProps) {
 
     setOptimisticVotedIndex(optionIndex);
     setOptimisticUnvoted(false);
-    voteMutation.mutate(optionIndex);
+    voteMutation.mutate(optionIndex, {
+      onSettled: () => setOptimisticVotedIndex(null),
+    });
   }
 
   function handleUnvote(e: React.MouseEvent) {
@@ -58,7 +60,9 @@ export default function PollDisplay({ poll, postId }: PollDisplayProps) {
 
     setOptimisticUnvoted(true);
     setOptimisticVotedIndex(null);
-    unvoteMutation.mutate();
+    unvoteMutation.mutate(undefined, {
+      onSettled: () => setOptimisticUnvoted(false),
+    });
   }
 
   const totalVotes = optimisticUnvoted
