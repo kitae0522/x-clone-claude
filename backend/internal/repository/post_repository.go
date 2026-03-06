@@ -27,6 +27,7 @@ type PostRepository interface {
 	FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error)
 	FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error)
 	IncrementViewCount(ctx context.Context, id uuid.UUID) error
+	IncrementViewCountBatch(ctx context.Context, ids []uuid.UUID) error
 }
 
 type postRepository struct {
@@ -549,6 +550,17 @@ func (r *postRepository) IncrementViewCount(ctx context.Context, id uuid.UUID) e
 	_, err := r.pool.Exec(ctx, `UPDATE posts SET view_count = view_count + 1 WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("failed to increment view count: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) IncrementViewCountBatch(ctx context.Context, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := r.pool.Exec(ctx, `UPDATE posts SET view_count = view_count + 1 WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return fmt.Errorf("failed to batch increment view count: %w", err)
 	}
 	return nil
 }

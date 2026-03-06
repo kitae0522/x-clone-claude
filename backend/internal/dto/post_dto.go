@@ -89,7 +89,10 @@ type PostDetailResponse struct {
 }
 
 type CreateReplyRequest struct {
-	Content string `json:"content" validate:"required,min=1,max=500"`
+	Content  string           `json:"content"  validate:"required,min=1,max=500"`
+	MediaIds []string         `json:"mediaIds" validate:"omitempty,max=4"`
+	Location *LocationRequest `json:"location"`
+	Poll     *PollRequest     `json:"poll"`
 }
 
 func ToPostResponse(p model.Post) PostResponse {

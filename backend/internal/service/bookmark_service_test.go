@@ -93,6 +93,10 @@ func (m *mockPostRepoForBookmark) IncrementViewCount(_ context.Context, _ uuid.U
 	return nil
 }
 
+func (m *mockPostRepoForBookmark) IncrementViewCountBatch(_ context.Context, _ []uuid.UUID) error {
+	return nil
+}
+
 func TestBookmark(t *testing.T) {
 	existingPostID := uuid.New()
 	userID := uuid.New()

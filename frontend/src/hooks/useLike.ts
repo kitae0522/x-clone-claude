@@ -20,6 +20,21 @@ async function deleteLike(postId: string): Promise<LikeStatusResponse> {
   return json.data;
 }
 
+function updateNestedReplies(
+  replies: PostDetail[] | null,
+  targetId: string,
+  liked: boolean,
+): PostDetail[] | null {
+  if (!replies) return replies;
+  return replies.map((r) => {
+    if (r.id === targetId) return updatePostInCache(r, liked);
+    if (r.topReplies) {
+      return { ...r, topReplies: updateNestedReplies(r.topReplies, targetId, liked) };
+    }
+    return r;
+  });
+}
+
 function updatePostInCache(old: PostDetail, liked: boolean): PostDetail {
   return {
     ...old,
@@ -74,7 +89,21 @@ export function useLike(postId: string, isLiked: boolean, parentId?: string) {
         );
       }
 
-      return { prevPosts, prevPost, prevReplies };
+      const prevParent = parentId
+        ? queryClient.getQueryData<PostDetail>(["post", parentId])
+        : undefined;
+
+      if (parentId && prevParent?.topReplies) {
+        queryClient.setQueryData<PostDetail>(["post", parentId], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            topReplies: updateNestedReplies(old.topReplies, postId, nextLiked),
+          };
+        });
+      }
+
+      return { prevPosts, prevPost, prevReplies, prevParent };
     },
     onError: (_err, _vars, context) => {
       if (context?.prevPosts) {
@@ -89,11 +118,15 @@ export function useLike(postId: string, isLiked: boolean, parentId?: string) {
           context.prevReplies,
         );
       }
+      if (parentId && context?.prevParent) {
+        queryClient.setQueryData(["post", parentId], context.prevParent);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["post", postId] });
       if (parentId) {
+        queryClient.invalidateQueries({ queryKey: ["post", parentId] });
         queryClient.invalidateQueries({
           queryKey: ["post", parentId, "replies"],
         });

@@ -207,6 +207,8 @@ func (s *postService) fetchReplies(ctx context.Context, postID uuid.UUID, userID
 		return nil, err
 	}
 
+	s.incrementViewCounts(ctx, replies, userID)
+
 	responses := make([]dto.PostDetailResponse, len(replies))
 	for i, r := range replies {
 		responses[i] = dto.ToPostDetailResponse(r)
@@ -298,7 +300,13 @@ func (s *postService) GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.Po
 
 func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.UUID, req dto.CreateReplyRequest) (*dto.PostDetailResponse, error) {
 	content := req.Content
-	if utf8.RuneCountInString(content) == 0 {
+	hasMedia := len(req.MediaIds) > 0
+
+	if req.Poll != nil && hasMedia {
+		return nil, apperror.BadRequest("poll and media cannot be used together")
+	}
+
+	if utf8.RuneCountInString(content) == 0 && !hasMedia {
 		return nil, apperror.BadRequest("content must not be empty")
 	}
 	if utf8.RuneCountInString(content) > 500 {
@@ -320,8 +328,50 @@ func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.U
 		Visibility: model.VisibilityPublic,
 	}
 
+	if req.Location != nil {
+		post.LocationLat = &req.Location.Latitude
+		post.LocationLng = &req.Location.Longitude
+		if req.Location.Name != "" {
+			post.LocationName = &req.Location.Name
+		}
+	}
+
 	if err := s.postRepo.CreateReply(ctx, post); err != nil {
 		return nil, apperror.Internal("failed to create reply")
+	}
+
+	if len(req.MediaIds) > 0 {
+		var mediaIDs []uuid.UUID
+		for _, idStr := range req.MediaIds {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				return nil, apperror.BadRequest("invalid media ID: %s", idStr)
+			}
+			mediaIDs = append(mediaIDs, id)
+		}
+		if err := s.mediaRepo.LinkToPost(ctx, mediaIDs, post.ID); err != nil {
+			return nil, apperror.Internal("failed to link media to reply")
+		}
+	}
+
+	if req.Poll != nil {
+		expiresAt := time.Now().Add(time.Duration(req.Poll.DurationMinutes) * time.Minute)
+		poll := &model.Poll{
+			PostID:    post.ID,
+			ExpiresAt: expiresAt,
+		}
+
+		var options []model.PollOption
+		for i, text := range req.Poll.Options {
+			options = append(options, model.PollOption{
+				OptionIndex: int16(i),
+				Text:        text,
+			})
+		}
+
+		if err := s.pollRepo.CreatePoll(ctx, poll, options); err != nil {
+			return nil, apperror.Internal("failed to create poll")
+		}
 	}
 
 	result, err := s.postRepo.FindByID(ctx, post.ID)
@@ -330,6 +380,7 @@ func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.U
 	}
 
 	resp := dto.ToPostDetailResponse(*result)
+	_ = s.enrichWithPollAndMedia(ctx, &resp, nil)
 	return &resp, nil
 }
 
@@ -353,6 +404,8 @@ func (s *postService) ListReplies(ctx context.Context, parentID uuid.UUID, userI
 	if err != nil {
 		return nil, apperror.Internal("failed to retrieve replies")
 	}
+
+	s.incrementViewCounts(ctx, replies, userID)
 
 	responses := make([]dto.PostDetailResponse, len(replies))
 	for i, r := range replies {
@@ -421,6 +474,27 @@ func (s *postService) enrichWithPollAndMedia(ctx context.Context, resp *dto.Post
 	}
 
 	return nil
+}
+
+func (s *postService) incrementViewCounts(ctx context.Context, posts []model.PostWithAuthor, userID *uuid.UUID) {
+	var ids []uuid.UUID
+	for i := range posts {
+		if userID == nil || posts[i].AuthorID != *userID {
+			ids = append(ids, posts[i].ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	if err := s.postRepo.IncrementViewCountBatch(ctx, ids); err != nil {
+		slog.Error("failed to batch increment view count", "error", err)
+		return
+	}
+	for i := range posts {
+		if userID == nil || posts[i].AuthorID != *userID {
+			posts[i].ViewCount++
+		}
+	}
 }
 
 func (s *postService) enrichSlice(ctx context.Context, responses []dto.PostDetailResponse, userID *uuid.UUID) {
