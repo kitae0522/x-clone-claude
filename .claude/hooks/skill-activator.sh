@@ -1,5 +1,7 @@
 #!/bin/bash
 # .claude/hooks/skill-activator.sh
+# Reads user prompt and suggests relevant skills based on keyword matching.
+# Supports both Korean and English keywords for bilingual matching.
 
 INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | grep -o '"prompt"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
@@ -14,7 +16,7 @@ if echo "$PROMPT" | grep -qiE "(handler|service|repository|Go|Fiber|미들웨어
 fi
 
 # react-frontend-patterns
-if echo "$PROMPT" | grep -qiE "(컴포넌트|화면|UI|페이지|hook|React|프론트)"; then
+if echo "$PROMPT" | grep -qiE "(컴포넌트|화면|UI|페이지|hook|React|프론트엔드|프론트)"; then
   SUGGESTIONS="${SUGGESTIONS}\n  -> react-frontend-patterns [critical]"
 fi
 
@@ -29,8 +31,18 @@ if echo "$PROMPT" | grep -qiE "(WebSocket|실시간|알림|notification|소켓|�
 fi
 
 # testing-patterns
-if echo "$PROMPT" | grep -qiE "(테스트|test|TDD|mock|커버리지)"; then
+if echo "$PROMPT" | grep -qiE "(테스트|test|TDD|mock|커버리지|단위|통합)"; then
   SUGGESTIONS="${SUGGESTIONS}\n  -> testing-patterns [high]"
+fi
+
+# git-convention
+if echo "$PROMPT" | grep -qiE "(커밋|commit|브랜치|branch|PR|merge|git|푸시|pull request)"; then
+  SUGGESTIONS="${SUGGESTIONS}\n  -> git-convention [high]"
+fi
+
+# database-patterns
+if echo "$PROMPT" | grep -qiE "(데이터베이스|DB|SQL|마이그레이션|스키마|쿼리|테이블)"; then
+  SUGGESTIONS="${SUGGESTIONS}\n  -> database-patterns [high]"
 fi
 
 if [ -n "$SUGGESTIONS" ]; then

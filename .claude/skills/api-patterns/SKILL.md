@@ -5,7 +5,7 @@ description: |
   Triggers on: API, endpoint, JWT, auth, pagination, fetch keywords.
 ---
 
-# API Patterns — X Clone
+# API Patterns -- X Clone
 
 ## Authentication Flow
 - Pass JWT token in Authorization header as Bearer format

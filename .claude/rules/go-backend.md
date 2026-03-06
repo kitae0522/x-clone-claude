@@ -6,7 +6,7 @@ globs: backend/**/*.go
 
 ## Mandatory Checklist
 - [ ] Is `ctx context.Context` the first parameter?
-- [ ] Are interfaces NOT received as pointers?
+- [ ] Are interfaces NOT received as pointers? (`*MyInterface` forbidden)
 - [ ] Are errors wrapped with `fmt.Errorf` instead of `panic`?
 - [ ] Are sentinel errors defined at the top of the package?
 - [ ] Are empty slices declared with `var` instead of `make`?
