@@ -154,6 +154,23 @@ export interface PostDetail {
   updatedAt: string;
 }
 
+export interface UpdatePostRequest {
+  content?: string;
+  visibility?: "public" | "follower" | "private";
+  mediaIds?: string[];
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+  } | null;
+  clearLocation?: boolean;
+  poll?: {
+    options: string[];
+    durationMinutes: number;
+  } | null;
+  clearPoll?: boolean;
+}
+
 export interface CreateReplyRequest {
   content: string;
   mediaIds?: string[];

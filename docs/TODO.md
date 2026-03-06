@@ -141,7 +141,30 @@
 - [x] 테스트 작성 (4 서브케이스 통과)
 - [x] 코드 리뷰 (Critical 2건 수정)
 
+## Phase 12: Post/Reply 수정 및 삭제 (진행중)
+- [x] 스펙 문서 작성 (docs/specs/post-edit-delete-spec.md)
+- [x] DB 마이그레이션 (posts.deleted_at 컬럼)
+- [x] apperror.Forbidden (403) 추가
+- [x] 백엔드 Model (DeletedAt 필드)
+- [x] 백엔드 DTO (UpdatePostRequest, DeletePostResponse)
+- [x] Repository: Update, SoftDelete, SoftDeleteReply + deleted_at IS NULL 필터 (14개 쿼리)
+- [x] Repository: PollRepository.DeleteByPostID, MediaRepository.UnlinkByPostID
+- [x] Service: UpdatePost (content/visibility/media/location/poll 수정)
+- [x] Service: DeletePost (soft delete, Reply는 본인+Post 작성자 삭제 가능)
+- [x] Handler: UpdatePost (PUT /api/posts/:id), DeletePost (DELETE /api/posts/:id)
+- [x] Router: PUT/DELETE /:id 라우트 등록
+- [x] 프론트엔드 UpdatePostRequest 타입
+- [x] useUpdatePost, useDeletePost 훅
+- [x] PostCard: 드롭다운 메뉴 + 인라인 수정 + 삭제 확인 + (edited) 표시
+- [x] ReplyCard: 동일
+- [x] PostDetailPage: 동일 + 삭제 후 홈 이동
+- [x] shadcn/ui DropdownMenu, AlertDialog 설치
+- [x] 기존 테스트 mock 업데이트 + 전체 테스트 통과
+- [x] 코드 리뷰
+- [ ] PR 생성
+
 ## 최근 변경 로그
+- 2026-03-06: Post/Reply 수정 및 삭제 구현 - soft delete, 인라인 편집, 권한 검증
 - 2026-03-06: 조회수(View Count) 시스템 구현 - 모든 post/reply에 조회수 표시, 큰 숫자 포맷팅
 - 2026-03-06: 공개 범위 설정 + 글쓰기 페이지 분리 + 답글 컨텍스트 구현
 - 2026-03-06: 글쓰기 커스터마이징 - 마크다운/미디어/위치/투표 구현

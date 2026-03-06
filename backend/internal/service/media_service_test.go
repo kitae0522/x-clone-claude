@@ -60,6 +60,10 @@ func (m *mockMediaRepo) FindByIDs(_ context.Context, _ []uuid.UUID) ([]model.Med
 	return nil, nil
 }
 
+func (m *mockMediaRepo) UnlinkByPostID(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 // --- Tests ---
 
 func TestMediaService_Upload_MIMETypeValidation(t *testing.T) {

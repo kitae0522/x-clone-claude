@@ -97,6 +97,18 @@ func (m *mockPostRepoForBookmark) IncrementViewCountBatch(_ context.Context, _ [
 	return nil
 }
 
+func (m *mockPostRepoForBookmark) Update(_ context.Context, _ uuid.UUID, _ string, _ model.Visibility, _ *float64, _ *float64, _ *string) error {
+	return nil
+}
+
+func (m *mockPostRepoForBookmark) SoftDelete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForBookmark) SoftDeleteReply(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+	return nil
+}
+
 func TestBookmark(t *testing.T) {
 	existingPostID := uuid.New()
 	userID := uuid.New()

@@ -15,6 +15,7 @@ type MediaRepository interface {
 	FindByPostID(ctx context.Context, postID uuid.UUID) ([]model.Media, error)
 	LinkToPost(ctx context.Context, mediaIDs []uuid.UUID, postID uuid.UUID) error
 	FindByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Media, error)
+	UnlinkByPostID(ctx context.Context, postID uuid.UUID) error
 }
 
 type mediaRepository struct {
@@ -166,4 +167,12 @@ func (r *mediaRepository) FindByIDs(ctx context.Context, ids []uuid.UUID) ([]mod
 		media = append(media, m)
 	}
 	return media, rows.Err()
+}
+
+func (r *mediaRepository) UnlinkByPostID(ctx context.Context, postID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM post_media WHERE post_id = $1`, postID)
+	if err != nil {
+		return fmt.Errorf("failed to unlink media by post_id: %w", err)
+	}
+	return nil
 }

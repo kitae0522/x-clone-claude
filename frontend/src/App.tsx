@@ -10,6 +10,7 @@ import RegisterPage from "@/pages/RegisterPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PostDetailPage from "@/pages/PostDetailPage";
 import ComposePage from "@/pages/ComposePage";
+import EditPage from "@/pages/EditPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -49,6 +50,7 @@ function App() {
             >
               <Route path="/" element={<HomePage />} />
               <Route path="/compose" element={<ComposePage />} />
+              <Route path="/compose/edit/:id" element={<EditPage />} />
               <Route path="/post/:id" element={<PostDetailPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/:handle" element={<ProfilePage />} />

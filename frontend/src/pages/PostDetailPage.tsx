@@ -4,12 +4,15 @@ import {
   Bookmark,
   Heart,
   MessageCircle,
+  MoreHorizontal,
+  Pencil,
   Repeat2,
   Share,
+  Trash2,
   ArrowLeft,
   MapPin,
 } from "lucide-react";
-import { usePostDetail, useParentChain } from "@/hooks/usePosts";
+import { usePostDetail, useParentChain, useDeletePost } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
@@ -27,6 +30,22 @@ import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
 import VisibilityBadge from "@/components/VisibilityBadge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export default function PostDetailPage() {
@@ -37,6 +56,7 @@ export default function PostDetailPage() {
   const { user: currentUser } = useAuth();
   const [isHoveringFollow, setIsHoveringFollow] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const authorUsername = post?.author.username ?? "";
   const isOwner = currentUser?.username === authorUsername;
@@ -48,7 +68,9 @@ export default function PostDetailPage() {
   const unfollow = useUnfollow(authorUsername);
   const like = useLike(postId, post?.isLiked ?? false);
   const bookmark = useBookmark(postId, post?.isBookmarked ?? false);
+  const deletePost = useDeletePost(postId);
   const { data: parentChain } = useParentChain(post?.parentId ?? null);
+  const isEdited = post ? post.updatedAt !== post.createdAt : false;
 
   if (isLoading)
     return (
@@ -141,6 +163,31 @@ export default function PostDetailPage() {
               @{post.author.username}
             </span>
           </div>
+          {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="ml-auto rounded-full border-none bg-transparent p-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer">
+                  <MoreHorizontal size={18} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                  onClick={() => navigate(`/compose/edit/${postId}`)}
+                >
+                  <Pencil size={14} className="mr-2" />
+                  수정
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 size={14} className="mr-2" />
+                  삭제
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {!isOwner && currentUser && authorProfile && (
             <Button
               onClick={handleFollowClick}
@@ -198,6 +245,11 @@ export default function PostDetailPage() {
           <span>
             {formatRelativeTime(post.createdAt)} ·{" "}
             {new Date(post.createdAt).toLocaleString("ko-KR")}
+            {isEdited && (
+              <span className="ml-1 text-xs text-muted-foreground/70">
+                (edited)
+              </span>
+            )}
           </span>
           <VisibilityBadge visibility={post.visibility} />
         </div>
@@ -295,6 +347,35 @@ export default function PostDetailPage() {
         onClose={() => setShowShareModal(false)}
         postId={postId}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {post.parentId
+                ? "답글을 삭제하시겠습니까?"
+                : "게시글을 삭제하시겠습니까?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다.{" "}
+              {post.parentId ? "답글" : "게시글"}이 영구적으로 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deletePost.mutate(undefined, {
+                  onSuccess: () => navigate("/"),
+                });
+              }}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <section>
         {post.topReplies?.map((reply) => (

@@ -28,6 +28,7 @@ type Post struct {
 	LocationName *string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	DeletedAt    *time.Time
 }
 
 type PostWithAuthor struct {

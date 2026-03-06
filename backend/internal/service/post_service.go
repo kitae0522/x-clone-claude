@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -26,6 +27,8 @@ type PostService interface {
 	ListPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
 	ListRepliesByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
 	ListLikedPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
+	UpdatePost(ctx context.Context, postID, requesterID uuid.UUID, req dto.UpdatePostRequest) (*dto.PostDetailResponse, error)
+	DeletePost(ctx context.Context, postID, requesterID uuid.UUID) error
 }
 
 const maxAuthorThreadDepth = 10
@@ -49,11 +52,15 @@ func NewPostService(postRepo repository.PostRepository, pollRepo repository.Poll
 }
 
 func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error) {
-	content := req.Content
+	content := strings.TrimSpace(req.Content)
 	hasMedia := len(req.MediaIds) > 0
 
 	if req.Poll != nil && hasMedia {
 		return nil, apperror.BadRequest("poll and media cannot be used together")
+	}
+
+	if len(req.MediaIds) > 4 {
+		return nil, apperror.BadRequest("media must not exceed 4 items")
 	}
 
 	if utf8.RuneCountInString(content) == 0 && !hasMedia {
@@ -298,11 +305,15 @@ func (s *postService) GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.Po
 }
 
 func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.UUID, req dto.CreateReplyRequest) (*dto.PostDetailResponse, error) {
-	content := req.Content
+	content := strings.TrimSpace(req.Content)
 	hasMedia := len(req.MediaIds) > 0
 
 	if req.Poll != nil && hasMedia {
 		return nil, apperror.BadRequest("poll and media cannot be used together")
+	}
+
+	if len(req.MediaIds) > 4 {
+		return nil, apperror.BadRequest("media must not exceed 4 items")
 	}
 
 	if utf8.RuneCountInString(content) == 0 && !hasMedia {
@@ -629,4 +640,177 @@ func (s *postService) ListLikedPostsByHandle(ctx context.Context, handle string,
 	responses := s.toPostDetailResponses(posts)
 	s.enrichSlice(ctx, responses, viewerID)
 	return responses, nil
+}
+
+func (s *postService) UpdatePost(ctx context.Context, postID, requesterID uuid.UUID, req dto.UpdatePostRequest) (*dto.PostDetailResponse, error) {
+	post, err := s.postRepo.FindByID(ctx, postID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apperror.NotFound("post not found")
+		}
+		return nil, apperror.Internal("failed to retrieve post")
+	}
+
+	if post.AuthorID != requesterID {
+		return nil, apperror.Forbidden("you can only edit your own post")
+	}
+
+	content := post.Content
+	if req.Content != nil {
+		content = strings.TrimSpace(*req.Content)
+	}
+
+	hasMedia := false
+	if s.mediaRepo != nil {
+		existingMedia, _ := s.mediaRepo.FindByPostID(ctx, postID)
+		hasMedia = len(existingMedia) > 0
+	}
+	if req.MediaIds != nil {
+		if len(*req.MediaIds) > 4 {
+			return nil, apperror.BadRequest("media must not exceed 4 items")
+		}
+		hasMedia = len(*req.MediaIds) > 0
+	}
+
+	if req.Poll != nil && req.MediaIds != nil && len(*req.MediaIds) > 0 {
+		return nil, apperror.BadRequest("poll and media cannot be used together")
+	}
+
+	if utf8.RuneCountInString(content) == 0 && !hasMedia {
+		return nil, apperror.BadRequest("content must not be empty")
+	}
+	if utf8.RuneCountInString(content) > 500 {
+		return nil, apperror.BadRequest("content must not exceed 500 characters")
+	}
+
+	visibility := post.Visibility
+	if req.Visibility != nil && post.ParentID == nil {
+		switch model.Visibility(*req.Visibility) {
+		case model.VisibilityPublic, model.VisibilityFollower, model.VisibilityPrivate:
+			visibility = model.Visibility(*req.Visibility)
+		default:
+			return nil, apperror.BadRequest("invalid visibility: %s", *req.Visibility)
+		}
+	}
+
+	locationLat := post.LocationLat
+	locationLng := post.LocationLng
+	locationName := post.LocationName
+
+	if req.ClearLocation {
+		locationLat = nil
+		locationLng = nil
+		locationName = nil
+	} else if req.Location != nil {
+		locationLat = &req.Location.Latitude
+		locationLng = &req.Location.Longitude
+		if req.Location.Name != "" {
+			locationName = &req.Location.Name
+		} else {
+			locationName = nil
+		}
+	}
+
+	if err := s.postRepo.Update(ctx, postID, content, visibility, locationLat, locationLng, locationName); err != nil {
+		return nil, apperror.Internal("failed to update post")
+	}
+
+	if req.ClearPoll {
+		if s.pollRepo != nil {
+			if err := s.pollRepo.DeleteByPostID(ctx, postID); err != nil {
+				slog.Error("failed to delete poll", "error", err)
+			}
+		}
+	} else if req.Poll != nil {
+		if s.pollRepo != nil {
+			_ = s.pollRepo.DeleteByPostID(ctx, postID)
+
+			expiresAt := time.Now().Add(time.Duration(req.Poll.DurationMinutes) * time.Minute)
+			poll := &model.Poll{
+				PostID:    postID,
+				ExpiresAt: expiresAt,
+			}
+			var options []model.PollOption
+			for i, text := range req.Poll.Options {
+				options = append(options, model.PollOption{
+					OptionIndex: int16(i),
+					Text:        text,
+				})
+			}
+			if err := s.pollRepo.CreatePoll(ctx, poll, options); err != nil {
+				slog.Error("failed to create poll on update", "error", err)
+			}
+		}
+	}
+
+	if req.MediaIds != nil {
+		if s.mediaRepo != nil {
+			_ = s.mediaRepo.UnlinkByPostID(ctx, postID)
+		}
+		if len(*req.MediaIds) > 0 {
+			if err := s.linkMediaFromService(ctx, *req.MediaIds, postID, requesterID); err != nil {
+				slog.Error("failed to link media on update", "error", err)
+			}
+		}
+	}
+
+	result, err := s.postRepo.FindByIDWithUser(ctx, postID, requesterID)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve updated post")
+	}
+
+	resp := dto.ToPostDetailResponse(*result)
+	_ = s.enrichWithPollAndMedia(ctx, &resp, &requesterID)
+	return &resp, nil
+}
+
+func (s *postService) DeletePost(ctx context.Context, postID, requesterID uuid.UUID) error {
+	post, err := s.postRepo.FindByID(ctx, postID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return apperror.NotFound("post not found")
+		}
+		return apperror.Internal("failed to retrieve post")
+	}
+
+	isReply := post.ParentID != nil
+	isPostAuthor := post.AuthorID == requesterID
+
+	if isReply {
+		var isParentAuthor bool
+		parent, parentErr := s.postRepo.FindByID(ctx, *post.ParentID)
+		if parentErr == nil && parent != nil {
+			isParentAuthor = parent.AuthorID == requesterID
+		}
+		if !isPostAuthor && !isParentAuthor {
+			return apperror.Forbidden("you can only delete your own reply or replies on your post")
+		}
+	} else {
+		if !isPostAuthor {
+			return apperror.Forbidden("you can only delete your own post")
+		}
+	}
+
+	// Clean up associated poll and media records
+	if s.pollRepo != nil {
+		if err := s.pollRepo.DeleteByPostID(ctx, postID); err != nil {
+			slog.Error("failed to delete poll on post delete", "error", err)
+		}
+	}
+	if s.mediaRepo != nil {
+		if err := s.mediaRepo.UnlinkByPostID(ctx, postID); err != nil {
+			slog.Error("failed to unlink media on post delete", "error", err)
+		}
+	}
+
+	if isReply {
+		if err := s.postRepo.SoftDeleteReply(ctx, postID, *post.ParentID); err != nil {
+			return apperror.Internal("failed to delete reply")
+		}
+		return nil
+	}
+	if err := s.postRepo.SoftDelete(ctx, postID); err != nil {
+		return apperror.Internal("failed to delete post")
+	}
+	return nil
 }

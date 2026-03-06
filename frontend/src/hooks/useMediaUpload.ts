@@ -75,9 +75,9 @@ async function pollForReady(mediaId: string): Promise<MediaItem> {
   throw new Error("Processing timed out");
 }
 
-export function useMediaUpload() {
+export function useMediaUpload(initialItems: MediaItem[] = []) {
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>(initialItems);
   const abortRef = useRef(false);
 
   const isUploading = uploads.some(

@@ -1,13 +1,31 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Heart, MessageCircle } from "lucide-react";
+import { Eye, Heart, MessageCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
+import { useDeletePost } from "@/hooks/usePosts";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCompactNumber } from "@/lib/formatTime";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +45,13 @@ export default function ReplyCard({
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const like = useLike(reply.id, reply.isLiked, parentPostId);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const isOwner = currentUser?.username === reply.author.username;
+  const isParentAuthor = opUsername != null && currentUser?.username === opUsername;
+  const canDelete = isOwner || isParentAuthor;
+  const isEdited = reply.updatedAt !== reply.createdAt;
+  const deletePost = useDeletePost(reply.id);
 
   const authorThread = reply.topReplies ?? [];
   const hasContinuation = authorThread.length > 0;
@@ -106,7 +131,41 @@ export default function ReplyCard({
             </span>
             <span className="text-[13px] text-muted-foreground">
               · {new Date(reply.createdAt).toLocaleString()}
+              {isEdited && (
+                <span className="ml-1 text-xs text-muted-foreground/70">
+                  (edited)
+                </span>
+              )}
             </span>
+            {canDelete && (
+              <div className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="rounded-full border-none bg-transparent p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer">
+                      <MoreHorizontal size={14} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {isOwner && (
+                      <DropdownMenuItem
+                        className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                        onClick={() => navigate(`/compose/edit/${reply.id}`)}
+                      >
+                        <Pencil size={14} className="mr-2" />
+                        수정
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      삭제
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
           <div className="mb-2 text-[14px] leading-normal">
             <MarkdownRenderer content={reply.content} />
@@ -160,6 +219,26 @@ export default function ReplyCard({
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>답글을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다. 답글이 영구적으로 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletePost.mutate()}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {authorThread.map((continuation, index) => (
         <ReplyCard
