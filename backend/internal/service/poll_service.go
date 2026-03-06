@@ -13,6 +13,7 @@ import (
 
 type PollService interface {
 	Vote(ctx context.Context, postID, userID uuid.UUID, optionIndex int16) (*dto.PollResponse, error)
+	Unvote(ctx context.Context, postID, userID uuid.UUID) (*dto.PollResponse, error)
 }
 
 type pollService struct {
@@ -63,6 +64,40 @@ func (s *pollService) Vote(ctx context.Context, postID, userID uuid.UUID, option
 	}
 
 	resp := buildPollResponse(poll, options, &optionIndex)
+	return resp, nil
+}
+
+func (s *pollService) Unvote(ctx context.Context, postID, userID uuid.UUID) (*dto.PollResponse, error) {
+	poll, _, err := s.pollRepo.FindByPostID(ctx, postID)
+	if err != nil {
+		return nil, apperror.Internal("failed to find poll")
+	}
+	if poll == nil {
+		return nil, apperror.NotFound("poll not found")
+	}
+
+	if time.Now().After(poll.ExpiresAt) {
+		return nil, apperror.BadRequest("poll has expired")
+	}
+
+	existingVote, err := s.pollRepo.GetUserVote(ctx, poll.ID, userID)
+	if err != nil {
+		return nil, apperror.Internal("failed to check existing vote")
+	}
+	if existingVote == nil {
+		return nil, apperror.BadRequest("you have not voted on this poll")
+	}
+
+	if err := s.pollRepo.Unvote(ctx, poll.ID, userID, *existingVote); err != nil {
+		return nil, apperror.Internal("failed to remove vote")
+	}
+
+	poll, options, err := s.pollRepo.FindByPostID(ctx, postID)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve updated poll")
+	}
+
+	resp := buildPollResponse(poll, options, nil)
 	return resp, nil
 }
 

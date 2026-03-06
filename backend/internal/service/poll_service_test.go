@@ -14,11 +14,11 @@ import (
 // --- Mock implementations for PollService ---
 
 type mockPollRepoForVote struct {
-	poll      *model.Poll
-	options   []model.PollOption
-	userVote  *int16
+	poll       *model.Poll
+	options    []model.PollOption
+	userVote   *int16
 	voteCalled bool
-	voteErr   error
+	voteErr    error
 }
 
 func (m *mockPollRepoForVote) CreatePoll(_ context.Context, _ *model.Poll, _ []model.PollOption) error {
@@ -32,6 +32,10 @@ func (m *mockPollRepoForVote) FindByPostID(_ context.Context, _ uuid.UUID) (*mod
 func (m *mockPollRepoForVote) Vote(_ context.Context, _, _ uuid.UUID, _ int16) error {
 	m.voteCalled = true
 	return m.voteErr
+}
+
+func (m *mockPollRepoForVote) Unvote(_ context.Context, _, _ uuid.UUID, _ int16) error {
+	return nil
 }
 
 func (m *mockPollRepoForVote) GetUserVote(_ context.Context, _, _ uuid.UUID) (*int16, error) {

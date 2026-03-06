@@ -14,6 +14,7 @@ type PollRepository interface {
 	CreatePoll(ctx context.Context, poll *model.Poll, options []model.PollOption) error
 	FindByPostID(ctx context.Context, postID uuid.UUID) (*model.Poll, []model.PollOption, error)
 	Vote(ctx context.Context, pollID, userID uuid.UUID, optionIndex int16) error
+	Unvote(ctx context.Context, pollID, userID uuid.UUID, optionIndex int16) error
 	GetUserVote(ctx context.Context, pollID, userID uuid.UUID) (*int16, error)
 	FindByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID]model.Poll, map[uuid.UUID][]model.PollOption, error)
 }
@@ -132,6 +133,48 @@ func (r *pollRepository) Vote(ctx context.Context, pollID, userID uuid.UUID, opt
 	pollUpdateQuery := `
 		UPDATE polls
 		SET total_votes = total_votes + 1
+		WHERE id = $1`
+
+	_, err = tx.Exec(ctx, pollUpdateQuery, pollID)
+	if err != nil {
+		return fmt.Errorf("failed to update poll total votes: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *pollRepository) Unvote(ctx context.Context, pollID, userID uuid.UUID, optionIndex int16) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	deleteQuery := `
+		DELETE FROM poll_votes
+		WHERE poll_id = $1 AND user_id = $2`
+
+	res, err := tx.Exec(ctx, deleteQuery, pollID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete vote: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("vote not found")
+	}
+
+	optionUpdateQuery := `
+		UPDATE poll_options
+		SET vote_count = vote_count - 1
+		WHERE poll_id = $1 AND option_index = $2`
+
+	_, err = tx.Exec(ctx, optionUpdateQuery, pollID, optionIndex)
+	if err != nil {
+		return fmt.Errorf("failed to update option vote count: %w", err)
+	}
+
+	pollUpdateQuery := `
+		UPDATE polls
+		SET total_votes = total_votes - 1
 		WHERE id = $1`
 
 	_, err = tx.Exec(ctx, pollUpdateQuery, pollID)

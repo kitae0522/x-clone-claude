@@ -141,6 +141,10 @@ func (m *mockPollRepo) Vote(_ context.Context, _, _ uuid.UUID, _ int16) error {
 	return nil
 }
 
+func (m *mockPollRepo) Unvote(_ context.Context, _, _ uuid.UUID, _ int16) error {
+	return nil
+}
+
 func (m *mockPollRepo) GetUserVote(_ context.Context, _, _ uuid.UUID) (*int16, error) {
 	return nil, nil
 }

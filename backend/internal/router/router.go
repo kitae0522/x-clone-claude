@@ -47,6 +47,7 @@ func Setup(p Params) {
 	posts.Post("/:id/bookmark", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.Bookmark)
 	posts.Delete("/:id/bookmark", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.Unbookmark)
 	posts.Post("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Vote)
+	posts.Delete("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Unvote)
 
 	auth := api.Group("/auth")
 	auth.Post("/register", p.AuthHandler.Register)

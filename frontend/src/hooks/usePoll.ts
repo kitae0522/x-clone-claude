@@ -35,3 +35,31 @@ export function useVote(postId: string) {
     },
   });
 }
+
+async function unvote(postId: string): Promise<PollData> {
+  const res = await fetch(`/api/posts/${postId}/vote`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.error ?? `Unvote failed: ${res.status}`);
+  }
+  const json: APIResponse<{ poll: PollData }> = await res.json();
+  if (!json.success) {
+    throw new Error(json.error ?? "Unknown error");
+  }
+  return json.data.poll;
+}
+
+export function useUnvote(postId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => unvote(postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["post", postId] });
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
