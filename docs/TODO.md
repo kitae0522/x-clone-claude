@@ -131,7 +131,18 @@
 - [x] Visibility 테스트 (9개 table-driven 케이스 통과)
 - [x] 코드 리뷰 (보안 체크 통과, MobileNav/PostDetailPage 수정)
 
+## Phase 11: 조회수(View Count) 시스템 (완료)
+- [x] 스펙 문서 작성 (docs/specs/view-count-spec.md)
+- [x] DB 마이그레이션 (posts.view_count 컬럼)
+- [x] 백엔드 Model/DTO/Repository/Service 구현
+- [x] IncrementViewCount (비본인 상세 조회 시만)
+- [x] 프론트엔드 PostCard/PostDetailPage/ReplyCard Eye 아이콘
+- [x] formatCompactNumber 유틸 (1.2K, 3.4M)
+- [x] 테스트 작성 (4 서브케이스 통과)
+- [x] 코드 리뷰 (Critical 2건 수정)
+
 ## 최근 변경 로그
+- 2026-03-06: 조회수(View Count) 시스템 구현 - 모든 post/reply에 조회수 표시, 큰 숫자 포맷팅
 - 2026-03-06: 공개 범위 설정 + 글쓰기 페이지 분리 + 답글 컨텍스트 구현
 - 2026-03-06: 글쓰기 커스터마이징 - 마크다운/미디어/위치/투표 구현
 - 2026-03-06: 백엔드 인프라 개선 - Validator, Logging(slog), DI(fx) 도입

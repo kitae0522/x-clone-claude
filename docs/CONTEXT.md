@@ -33,6 +33,15 @@
 - 별도 테이블 대비 JOIN 복잡도 감소
 **트레이드오프**: N-depth 지원 가능하지만, UI 복잡도 관리를 위해 1-depth만 렌더링. 피드 쿼리에 `WHERE parent_id IS NULL` 필터 필요
 
+## 2026-03-06 — 조회수(View Count) 저장 방식
+**상황**: 조회수를 별도 테이블(post_views)로 관리할지, posts 테이블에 직접 저장할지
+**결정**: posts.view_count 컬럼 직접 저장 (like_count/reply_count 패턴과 동일)
+**이유**:
+- 기존 카운트 필드와 일관성 유지
+- 별도 테이블은 집계 쿼리 비용 증가, MVP 수준에서 과도한 설계
+- 비본인 + 상세 조회 시에만 증가 (피드 스크롤 시 미증가)
+**트레이드오프**: 중복 조회도 카운트 (X도 동일). 고트래픽 시 Redis 배치 처리로 확장 가능
+
 ## 2026-03-06 — Profile 탭 조회: handle 기반 Repository 메서드
 **상황**: Profile 페이지에서 사용자 게시물/답글/좋아요를 조회할 때 handle(username)로 API를 호출
 **결정**: PostRepository에 handle 기반 조회 메서드 추가 (users JOIN으로 username → author_id 해석)

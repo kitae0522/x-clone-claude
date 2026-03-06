@@ -77,6 +77,7 @@ type PostDetailResponse struct {
 	Author       PostAuthor           `json:"author"`
 	LikeCount    int                  `json:"likeCount"`
 	ReplyCount   int                  `json:"replyCount"`
+	ViewCount    int                  `json:"viewCount"`
 	IsLiked      bool                 `json:"isLiked"`
 	IsBookmarked bool                 `json:"isBookmarked"`
 	Location     *LocationResponse    `json:"location,omitempty"`
@@ -122,6 +123,7 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		},
 		LikeCount:    p.LikeCount,
 		ReplyCount:   p.ReplyCount,
+		ViewCount:    p.ViewCount,
 		IsLiked:      p.IsLiked,
 		IsBookmarked: p.IsBookmarked,
 		CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05Z"),
