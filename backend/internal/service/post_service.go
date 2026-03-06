@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sort"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -27,20 +28,32 @@ type PostService interface {
 const maxAuthorThreadDepth = 10
 
 type postService struct {
-	postRepo repository.PostRepository
+	postRepo  repository.PostRepository
+	pollRepo  repository.PollRepository
+	mediaRepo repository.MediaRepository
 }
 
-func NewPostService(postRepo repository.PostRepository) PostService {
-	return &postService{postRepo: postRepo}
+func NewPostService(postRepo repository.PostRepository, pollRepo repository.PollRepository, mediaRepo repository.MediaRepository) PostService {
+	return &postService{
+		postRepo:  postRepo,
+		pollRepo:  pollRepo,
+		mediaRepo: mediaRepo,
+	}
 }
 
 func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dto.CreatePostRequest) (*dto.PostDetailResponse, error) {
 	content := req.Content
-	if utf8.RuneCountInString(content) == 0 {
+	hasMedia := len(req.MediaIds) > 0
+
+	if req.Poll != nil && hasMedia {
+		return nil, apperror.BadRequest("poll and media cannot be used together")
+	}
+
+	if utf8.RuneCountInString(content) == 0 && !hasMedia {
 		return nil, apperror.BadRequest("content must not be empty")
 	}
-	if utf8.RuneCountInString(content) > 280 {
-		return nil, apperror.BadRequest("content must not exceed 280 characters")
+	if utf8.RuneCountInString(content) > 500 {
+		return nil, apperror.BadRequest("content must not exceed 500 characters")
 	}
 
 	visibility := model.VisibilityPublic
@@ -59,8 +72,50 @@ func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dt
 		Visibility: visibility,
 	}
 
+	if req.Location != nil {
+		post.LocationLat = &req.Location.Latitude
+		post.LocationLng = &req.Location.Longitude
+		if req.Location.Name != "" {
+			post.LocationName = &req.Location.Name
+		}
+	}
+
 	if err := s.postRepo.Create(ctx, post); err != nil {
 		return nil, apperror.Internal("failed to create post")
+	}
+
+	if len(req.MediaIds) > 0 {
+		var mediaIDs []uuid.UUID
+		for _, idStr := range req.MediaIds {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				return nil, apperror.BadRequest("invalid media ID: %s", idStr)
+			}
+			mediaIDs = append(mediaIDs, id)
+		}
+		if err := s.mediaRepo.LinkToPost(ctx, mediaIDs, post.ID); err != nil {
+			return nil, apperror.Internal("failed to link media to post")
+		}
+	}
+
+	if req.Poll != nil {
+		expiresAt := time.Now().Add(time.Duration(req.Poll.DurationMinutes) * time.Minute)
+		poll := &model.Poll{
+			PostID:    post.ID,
+			ExpiresAt: expiresAt,
+		}
+
+		var options []model.PollOption
+		for i, text := range req.Poll.Options {
+			options = append(options, model.PollOption{
+				OptionIndex: int16(i),
+				Text:        text,
+			})
+		}
+
+		if err := s.pollRepo.CreatePoll(ctx, poll, options); err != nil {
+			return nil, apperror.Internal("failed to create poll")
+		}
 	}
 
 	result, err := s.postRepo.FindByID(ctx, post.ID)
@@ -228,8 +283,8 @@ func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.U
 	if utf8.RuneCountInString(content) == 0 {
 		return nil, apperror.BadRequest("content must not be empty")
 	}
-	if utf8.RuneCountInString(content) > 280 {
-		return nil, apperror.BadRequest("content must not exceed 280 characters")
+	if utf8.RuneCountInString(content) > 500 {
+		return nil, apperror.BadRequest("content must not exceed 500 characters")
 	}
 
 	_, err := s.postRepo.FindByID(ctx, parentID)

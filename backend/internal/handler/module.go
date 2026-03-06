@@ -10,5 +10,7 @@ var Module = fx.Module("handler",
 		NewFollowHandler,
 		NewBookmarkHandler,
 		NewUserHandler,
+		NewMediaHandler,
+		NewPollHandler,
 	),
 )

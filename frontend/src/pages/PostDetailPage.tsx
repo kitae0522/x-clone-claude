@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Bookmark, Heart, MessageCircle, Repeat2, Share, ArrowLeft } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Repeat2, Share, ArrowLeft, MapPin } from "lucide-react";
 import { usePostDetail, useParentChain } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -15,6 +15,9 @@ import ReplyForm from "@/components/ReplyForm";
 import ReplyCard from "@/components/ReplyCard";
 import ParentPostCard from "@/components/ParentPostCard";
 import ShareModal from "@/components/ShareModal";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MediaGrid from "@/components/MediaGrid";
+import PollDisplay from "@/components/PollDisplay";
 import { cn } from "@/lib/utils";
 
 export default function PostDetailPage() {
@@ -154,9 +157,37 @@ export default function PostDetailPage() {
           )}
         </div>
 
-        <p className="mb-4 text-[17px] leading-relaxed text-foreground">
-          {post.content}
-        </p>
+        {/* Location */}
+        {post.location && (
+          <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <MapPin size={14} />
+            <span>{post.location.name}</span>
+          </div>
+        )}
+
+        {post.content && (
+          <div className="mb-4 text-[17px] leading-relaxed">
+            <MarkdownRenderer content={post.content} />
+          </div>
+        )}
+
+        {/* Media */}
+        {post.media && post.media.length > 0 && (
+          <div className="mb-4">
+            <MediaGrid media={post.media} />
+          </div>
+        )}
+
+        {/* Poll */}
+        {post.poll && (
+          <div className="mb-4">
+            <PollDisplay
+              poll={post.poll}
+              postId={postId}
+              isOwnPost={isOwner}
+            />
+          </div>
+        )}
 
         <div className="text-[15px] text-muted-foreground">
           {formatRelativeTime(post.createdAt)} ·{" "}

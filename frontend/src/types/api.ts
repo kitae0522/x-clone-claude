@@ -75,9 +75,49 @@ export interface UpdateProfileRequest {
   headerImageUrl: string
 }
 
+export interface MediaItem {
+  id: string
+  url: string
+  type: 'image' | 'video' | 'gif'
+  mimeType: string
+  width: number | null
+  height: number | null
+  size: number
+  duration: number | null
+}
+
+export interface LocationData {
+  latitude: number
+  longitude: number
+  name: string
+}
+
+export interface PollOption {
+  text: string
+  voteCount: number
+}
+
+export interface PollData {
+  options: PollOption[]
+  totalVotes: number
+  votedIndex: number
+  expiresAt: string
+  isExpired: boolean
+}
+
 export interface CreatePostRequest {
   content: string
   visibility: 'public' | 'friends' | 'private'
+  mediaIds?: string[]
+  location?: {
+    latitude: number
+    longitude: number
+    name?: string
+  }
+  poll?: {
+    options: string[]
+    durationMinutes: number
+  }
 }
 
 export interface PostAuthor {
@@ -104,6 +144,9 @@ export interface PostDetail {
   replyCount: number
   isLiked: boolean
   isBookmarked: boolean
+  media?: MediaItem[] | null
+  location?: LocationData | null
+  poll?: PollData | null
   topReplies: PostDetail[] | null
   createdAt: string
   updatedAt: string

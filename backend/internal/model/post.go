@@ -15,15 +15,18 @@ const (
 )
 
 type Post struct {
-	ID         uuid.UUID
-	AuthorID   uuid.UUID
-	ParentID   *uuid.UUID
-	Content    string
-	Visibility Visibility
-	LikeCount  int
-	ReplyCount int
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID           uuid.UUID
+	AuthorID     uuid.UUID
+	ParentID     *uuid.UUID
+	Content      string
+	Visibility   Visibility
+	LikeCount    int
+	ReplyCount   int
+	LocationLat  *float64
+	LocationLng  *float64
+	LocationName *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type PostWithAuthor struct {
@@ -33,6 +36,9 @@ type PostWithAuthor struct {
 	AuthorProfileImageURL string
 	IsLiked               bool
 	IsBookmarked          bool
+	LocationLat           *float64
+	LocationLng           *float64
+	LocationName          *string
 	// Parent post info (optional, populated for replies in profile context)
 	ParentPostID                *uuid.UUID
 	ParentContent               *string

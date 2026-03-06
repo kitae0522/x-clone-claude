@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ReplyForm from "@/components/ReplyForm";
 import { cn } from "@/lib/utils";
 
@@ -109,9 +110,9 @@ export default function ReplyCard({
               · {new Date(reply.createdAt).toLocaleString()}
             </span>
           </div>
-          <p className="mb-2 text-[14px] leading-normal text-foreground">
-            {reply.content}
-          </p>
+          <div className="mb-2 text-[14px] leading-normal">
+            <MarkdownRenderer content={reply.content} />
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleLikeClick}
