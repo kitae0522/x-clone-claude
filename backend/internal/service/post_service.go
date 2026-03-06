@@ -124,6 +124,7 @@ func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dt
 	}
 
 	resp := dto.ToPostDetailResponse(*result)
+	_ = s.enrichWithPollAndMedia(ctx, &resp, nil)
 	return &resp, nil
 }
 
@@ -145,6 +146,7 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uui
 	}
 
 	resp := dto.ToPostDetailResponse(*result)
+	_ = s.enrichWithPollAndMedia(ctx, &resp, userID)
 
 	replies, err := s.fetchReplies(ctx, id, userID)
 	if err != nil {
@@ -275,6 +277,7 @@ func (s *postService) GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.Po
 	for i, p := range posts {
 		responses[i] = dto.ToPostDetailResponse(p)
 	}
+	s.enrichSlice(ctx, responses, userID)
 	return responses, nil
 }
 
@@ -351,6 +354,66 @@ func (s *postService) toPostDetailResponses(posts []model.PostWithAuthor) []dto.
 	return responses
 }
 
+func (s *postService) enrichWithPollAndMedia(ctx context.Context, resp *dto.PostDetailResponse, userID *uuid.UUID) error {
+	postID, err := uuid.Parse(resp.ID)
+	if err != nil {
+		return err
+	}
+
+	if s.pollRepo != nil {
+		poll, options, err := s.pollRepo.FindByPostID(ctx, postID)
+		if err == nil && poll != nil {
+			pollResp := &dto.PollResponse{
+				TotalVotes: poll.TotalVotes,
+				ExpiresAt:  poll.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+				IsExpired:  time.Now().After(poll.ExpiresAt),
+				VotedIndex: -1,
+			}
+			for _, o := range options {
+				pollResp.Options = append(pollResp.Options, dto.PollOptionResponse{
+					Text:      o.Text,
+					VoteCount: o.VoteCount,
+				})
+			}
+			if userID != nil {
+				votedIdx, err := s.pollRepo.GetUserVote(ctx, poll.ID, *userID)
+				if err == nil && votedIdx != nil {
+					pollResp.VotedIndex = int(*votedIdx)
+				}
+			}
+			resp.Poll = pollResp
+		}
+	}
+
+	if s.mediaRepo != nil {
+		mediaList, err := s.mediaRepo.FindByPostID(ctx, postID)
+		if err == nil && len(mediaList) > 0 {
+			var mediaResponses []dto.MediaResponse
+			for _, m := range mediaList {
+				mediaResponses = append(mediaResponses, dto.MediaResponse{
+					ID:       m.ID.String(),
+					URL:      m.URL,
+					Type:     string(m.MediaType),
+					MimeType: m.MimeType,
+					Width:    m.Width,
+					Height:   m.Height,
+					Size:     m.SizeBytes,
+					Duration: m.DurationSeconds,
+				})
+			}
+			resp.Media = mediaResponses
+		}
+	}
+
+	return nil
+}
+
+func (s *postService) enrichSlice(ctx context.Context, responses []dto.PostDetailResponse, userID *uuid.UUID) {
+	for i := range responses {
+		_ = s.enrichWithPollAndMedia(ctx, &responses[i], userID)
+	}
+}
+
 func (s *postService) ListPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
 	var posts []model.PostWithAuthor
 	var err error
@@ -365,7 +428,9 @@ func (s *postService) ListPostsByHandle(ctx context.Context, handle string, view
 		return nil, apperror.Internal("failed to retrieve user posts")
 	}
 
-	return s.toPostDetailResponses(posts), nil
+	responses := s.toPostDetailResponses(posts)
+	s.enrichSlice(ctx, responses, viewerID)
+	return responses, nil
 }
 
 func (s *postService) ListRepliesByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
@@ -382,7 +447,9 @@ func (s *postService) ListRepliesByHandle(ctx context.Context, handle string, vi
 		return nil, apperror.Internal("failed to retrieve user replies")
 	}
 
-	return s.toPostDetailResponses(posts), nil
+	responses := s.toPostDetailResponses(posts)
+	s.enrichSlice(ctx, responses, viewerID)
+	return responses, nil
 }
 
 func (s *postService) ListLikedPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
@@ -399,5 +466,7 @@ func (s *postService) ListLikedPostsByHandle(ctx context.Context, handle string,
 		return nil, apperror.Internal("failed to retrieve liked posts")
 	}
 
-	return s.toPostDetailResponses(posts), nil
+	responses := s.toPostDetailResponses(posts)
+	s.enrichSlice(ctx, responses, viewerID)
+	return responses, nil
 }
