@@ -102,4 +102,3 @@ func setTokenCookie(c *fiber.Ctx, token string) {
 		Path:     "/",
 	})
 }
-
