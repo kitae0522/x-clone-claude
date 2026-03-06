@@ -10,10 +10,11 @@ import (
 
 type UserHandler struct {
 	userService service.UserService
+	postService service.PostService
 }
 
-func NewUserHandler(userService service.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService service.UserService, postService service.PostService) *UserHandler {
+	return &UserHandler{userService: userService, postService: postService}
 }
 
 func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
@@ -22,14 +23,7 @@ func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
 		return respondError(c, apperror.BadRequest("handle is required"))
 	}
 
-	var viewerID *uuid.UUID
-	if userIDStr, ok := c.Locals("userID").(string); ok {
-		if id, err := uuid.Parse(userIDStr); err == nil {
-			viewerID = &id
-		}
-	}
-
-	profile, err := h.userService.GetProfile(c.Context(), handle, viewerID)
+	profile, err := h.userService.GetProfile(c.Context(), handle, h.getViewerID(c))
 	if err != nil {
 		return respondError(c, err)
 	}
@@ -37,6 +31,66 @@ func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
 	return c.JSON(dto.APIResponse{
 		Success: true,
 		Data:    profile,
+	})
+}
+
+func (h *UserHandler) getViewerID(c *fiber.Ctx) *uuid.UUID {
+	if userIDStr, ok := c.Locals("userID").(string); ok {
+		if id, err := uuid.Parse(userIDStr); err == nil {
+			return &id
+		}
+	}
+	return nil
+}
+
+func (h *UserHandler) GetUserPosts(c *fiber.Ctx) error {
+	handle := c.Params("handle")
+	if handle == "" {
+		return respondError(c, apperror.BadRequest("handle is required"))
+	}
+
+	posts, err := h.postService.ListPostsByHandle(c.Context(), handle, h.getViewerID(c))
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    posts,
+	})
+}
+
+func (h *UserHandler) GetUserReplies(c *fiber.Ctx) error {
+	handle := c.Params("handle")
+	if handle == "" {
+		return respondError(c, apperror.BadRequest("handle is required"))
+	}
+
+	replies, err := h.postService.ListRepliesByHandle(c.Context(), handle, h.getViewerID(c))
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    replies,
+	})
+}
+
+func (h *UserHandler) GetUserLikes(c *fiber.Ctx) error {
+	handle := c.Params("handle")
+	if handle == "" {
+		return respondError(c, apperror.BadRequest("handle is required"))
+	}
+
+	likes, err := h.postService.ListLikedPostsByHandle(c.Context(), handle, h.getViewerID(c))
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    likes,
 	})
 }
 

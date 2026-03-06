@@ -20,6 +20,12 @@ type PostRepository interface {
 	FindRepliesByPostIDWithUser(ctx context.Context, postID, userID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error)
 	FindAuthorReplyByPostID(ctx context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error)
 	FindAuthorReplyByPostIDWithUser(ctx context.Context, postID, authorID, userID uuid.UUID) (*model.PostWithAuthor, error)
+	FindByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error)
+	FindByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error)
+	FindRepliesByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error)
+	FindRepliesByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error)
+	FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error)
+	FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error)
 }
 
 type postRepository struct {
@@ -293,4 +299,178 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		replies = append(replies, p)
 	}
 	return replies, rows.Err()
+}
+
+type scannable interface {
+	Next() bool
+	Scan(dest ...any) error
+	Close()
+	Err() error
+}
+
+func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model.PostWithAuthor, error) {
+	defer rows.Close()
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		var scanArgs []any
+		scanArgs = append(scanArgs,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		)
+		if withIsLiked {
+			scanArgs = append(scanArgs, &p.IsLiked)
+		}
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
+
+func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		WHERE u.username = $1 AND p.parent_id IS NULL
+		ORDER BY p.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanPostRows(rows, false)
+}
+
+func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		WHERE u.username = $1 AND p.parent_id IS NULL
+		ORDER BY p.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset, userID)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanPostRows(rows, true)
+}
+
+func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked bool) ([]model.PostWithAuthor, error) {
+	defer rows.Close()
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		var scanArgs []any
+		scanArgs = append(scanArgs,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		)
+		if withIsLiked {
+			scanArgs = append(scanArgs, &p.IsLiked)
+		}
+		scanArgs = append(scanArgs,
+			&p.ParentPostID, &p.ParentContent,
+			&p.ParentAuthorUsername, &p.ParentAuthorDisplayName, &p.ParentAuthorProfileImageURL,
+		)
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
+
+func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       pp.id, pp.content,
+		       pu.username, pu.display_name, pu.profile_image_url
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		LEFT JOIN posts pp ON pp.id = p.parent_id
+		LEFT JOIN users pu ON pu.id = pp.author_id
+		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		ORDER BY p.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanReplyWithParentRows(rows, false)
+}
+
+func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       pp.id, pp.content,
+		       pu.username, pu.display_name, pu.profile_image_url
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		LEFT JOIN posts pp ON pp.id = p.parent_id
+		LEFT JOIN users pu ON pu.id = pp.author_id
+		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		ORDER BY p.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset, userID)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanReplyWithParentRows(rows, true)
+}
+
+func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url
+		FROM likes lk
+		JOIN users target ON target.username = $1
+		JOIN posts p ON p.id = lk.post_id
+		JOIN users u ON p.author_id = u.id
+		WHERE lk.user_id = target.id
+		ORDER BY lk.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanPostRows(rows, false)
+}
+
+func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		       u.username, u.display_name, u.profile_image_url,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked
+		FROM likes lk
+		JOIN users target ON target.username = $1
+		JOIN posts p ON p.id = lk.post_id
+		JOIN users u ON p.author_id = u.id
+		WHERE lk.user_id = target.id
+		ORDER BY lk.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, handle, limit, offset, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	return r.scanPostRows(rows, true)
 }

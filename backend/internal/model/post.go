@@ -32,4 +32,10 @@ type PostWithAuthor struct {
 	AuthorDisplayName     string
 	AuthorProfileImageURL string
 	IsLiked               bool
+	// Parent post info (optional, populated for replies in profile context)
+	ParentPostID               *uuid.UUID
+	ParentContent              *string
+	ParentAuthorUsername        *string
+	ParentAuthorDisplayName     *string
+	ParentAuthorProfileImageURL *string
 }

@@ -47,7 +47,16 @@
 - [x] LoginPage/RegisterPage shadcn/ui 마이그레이션
 - [x] formatRelativeTime 유틸리티 함수
 
+## Phase 7: Profile 탭 콘텐츠 (완료)
+- [x] PostRepository handle 기반 조회 메서드 6개 추가 (#31)
+- [x] PostService 3개 조회 메서드 (ListPostsByHandle, ListRepliesByHandle, ListLikedPostsByHandle)
+- [x] UserHandler PostService 의존성 + 핸들러 3개 (GetUserPosts, GetUserReplies, GetUserLikes)
+- [x] main.go 라우트 3개 등록 (OptionalAuth)
+- [x] useUserPosts.ts hook (useUserPosts, useUserReplies, useUserLikes)
+- [x] ProfilePage.tsx 탭 콘텐츠 실제 데이터 연동 (PostCard 렌더링, 로딩/빈 상태)
+
 ## 최근 변경 로그
+- 2026-03-06: 이슈 #31 Profile 페이지 탭 콘텐츠 구현 (게시물/답글/좋아요)
 - 2026-03-06: 이슈 #19 주요 UI 레이아웃 및 스타일링 고도화 (3단 레이아웃, 반응형)
 - 2026-03-06: 이슈 #18 shadcn/ui 기반 공통 UI 컴포넌트 시스템 구축
 - 2026-03-05: 이슈 #28 Post Detail API nested replies 최적화 (110+→1 요청)

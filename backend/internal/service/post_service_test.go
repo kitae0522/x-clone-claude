@@ -99,6 +99,30 @@ func (m *mockPostRepo) FindAuthorReplyByPostIDWithUser(_ context.Context, postID
 	return m.FindAuthorReplyByPostID(context.Background(), postID, authorID)
 }
 
+func (m *mockPostRepo) FindByAuthorHandle(_ context.Context, _ string, _, _ int) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) FindByAuthorHandleWithUser(_ context.Context, _ string, _, _ int, _ uuid.UUID) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) FindRepliesByAuthorHandle(_ context.Context, _ string, _, _ int) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) FindRepliesByAuthorHandleWithUser(_ context.Context, _ string, _, _ int, _ uuid.UUID) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) FindLikedByUserHandle(_ context.Context, _ string, _, _ int) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) FindLikedByUserHandleWithViewer(_ context.Context, _ string, _, _ int, _ uuid.UUID) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
 	svc := NewPostService(repo)

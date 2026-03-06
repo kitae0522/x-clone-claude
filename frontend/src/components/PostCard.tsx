@@ -123,6 +123,27 @@ function PostCard({ post }: PostCardProps) {
             )}
           </div>
 
+          {/* Replying to context */}
+          {post.parent && (
+            <div
+              className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/post/${post.parent!.id}`);
+              }}
+            >
+              <span>
+                <span className="text-muted-foreground">replying to </span>
+                <span className="cursor-pointer text-primary hover:underline">
+                  @{post.parent.author.username}
+                </span>
+              </span>
+              <span className="truncate text-muted-foreground/70">
+                — {post.parent.content}
+              </span>
+            </div>
+          )}
+
           {/* Content */}
           <p className="mt-0.5 text-[15px] leading-normal text-foreground">
             {post.content}

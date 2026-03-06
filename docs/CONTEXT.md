@@ -32,3 +32,11 @@
 - 답글에도 좋아요/답글 달기 등 동일 인터랙션 적용 가능
 - 별도 테이블 대비 JOIN 복잡도 감소
 **트레이드오프**: N-depth 지원 가능하지만, UI 복잡도 관리를 위해 1-depth만 렌더링. 피드 쿼리에 `WHERE parent_id IS NULL` 필터 필요
+
+## 2026-03-06 — Profile 탭 조회: handle 기반 Repository 메서드
+**상황**: Profile 페이지에서 사용자 게시물/답글/좋아요를 조회할 때 handle(username)로 API를 호출
+**결정**: PostRepository에 handle 기반 조회 메서드 추가 (users JOIN으로 username → author_id 해석)
+**이유**:
+- 프론트엔드에서 handle만 알고 있으므로 별도 user ID 조회 단계 없이 한 번의 쿼리로 해결
+- 좋아요 목록은 likes 테이블 + users(target) + posts + users(author) 4-way JOIN
+**트레이드오프**: Repository 메서드 수 증가 (6개), 하지만 각각 단일 쿼리로 N+1 없음
