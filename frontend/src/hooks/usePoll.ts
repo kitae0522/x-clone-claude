@@ -10,6 +10,7 @@ async function vote({ postId, optionIndex }: VoteRequest): Promise<PollData> {
   const res = await fetch(`/api/posts/${postId}/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ optionIndex }),
   });
   if (!res.ok) {

@@ -45,6 +45,6 @@ func (h *PollHandler) Vote(c *fiber.Ctx) error {
 
 	return c.JSON(dto.APIResponse{
 		Success: true,
-		Data:    resp,
+		Data:    fiber.Map{"poll": resp},
 	})
 }
