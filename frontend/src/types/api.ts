@@ -86,10 +86,17 @@ export interface PostAuthor {
   profileImageUrl: string
 }
 
+export interface ParentPostSummary {
+  id: string
+  content: string
+  author: PostAuthor
+}
+
 export interface PostDetail {
   id: string
   authorId: string
   parentId: string | null
+  parent?: ParentPostSummary | null
   content: string
   visibility: 'public' | 'friends' | 'private'
   author: PostAuthor

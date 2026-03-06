@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays } from "lucide-react";
+import type { PostDetail } from "@/types/api";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
+import {
+  useUserPosts,
+  useUserReplies,
+  useUserLikes,
+} from "@/hooks/useUserPosts";
 import EditProfileModal from "@/components/EditProfileModal";
 import FollowListModal from "@/components/FollowListModal";
+import PostCard from "@/components/PostCard";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +34,9 @@ export default function ProfilePage() {
 
   const follow = useFollow(handle ?? "");
   const unfollow = useUnfollow(handle ?? "");
+  const userPosts = useUserPosts(handle ?? "");
+  const userReplies = useUserReplies(handle ?? "");
+  const userLikes = useUserLikes(handle ?? "");
 
   const isOwner = currentUser?.username === profile?.username;
 
@@ -89,7 +100,9 @@ export default function ProfilePage() {
           <div className="text-xl font-bold leading-tight">
             {profile.displayName}
           </div>
-          <div className="text-[13px] text-muted-foreground">0 posts</div>
+          <div className="text-[13px] text-muted-foreground">
+            {userPosts.data?.length ?? 0} posts
+          </div>
         </div>
       </header>
 
@@ -209,11 +222,12 @@ export default function ProfilePage() {
       </div>
 
       {/* Tab Content */}
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        {activeTab === "posts" && "아직 게시물이 없습니다."}
-        {activeTab === "replies" && "아직 답글이 없습니다."}
-        {activeTab === "likes" && "아직 좋아요한 게시물이 없습니다."}
-      </div>
+      <TabContent
+        tab={activeTab}
+        userPosts={userPosts}
+        userReplies={userReplies}
+        userLikes={userLikes}
+      />
 
       {showEditModal && currentUser && (
         <EditProfileModal
@@ -230,5 +244,54 @@ export default function ProfilePage() {
         />
       )}
     </>
+  );
+}
+
+function TabContent({
+  tab,
+  userPosts,
+  userReplies,
+  userLikes,
+}: {
+  tab: Tab;
+  userPosts: UseQueryResult<PostDetail[]>;
+  userReplies: UseQueryResult<PostDetail[]>;
+  userLikes: UseQueryResult<PostDetail[]>;
+}) {
+  const queryMap = {
+    posts: userPosts,
+    replies: userReplies,
+    likes: userLikes,
+  };
+  const emptyMessages = {
+    posts: "아직 게시물이 없습니다.",
+    replies: "아직 답글이 없습니다.",
+    likes: "아직 좋아요한 게시물이 없습니다.",
+  };
+
+  const { data, isLoading } = queryMap[tab];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="py-8 text-center text-sm text-muted-foreground">
+        {emptyMessages[tab]}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {data.map((post) => (
+        <PostCard key={post.id} post={post} />
+      ))}
+    </div>
   );
 }

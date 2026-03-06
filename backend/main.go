@@ -48,7 +48,7 @@ func main() {
 	followHandler := handler.NewFollowHandler(followService)
 
 	userService := service.NewUserService(userRepo, followRepo)
-	userHandler := handler.NewUserHandler(userService)
+	userHandler := handler.NewUserHandler(userService, postService)
 
 	api := app.Group("/api")
 	posts := api.Group("/posts")
@@ -72,6 +72,9 @@ func main() {
 	users.Delete("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Unfollow)
 	users.Get("/:handle/following", followHandler.GetFollowing)
 	users.Get("/:handle/followers", followHandler.GetFollowers)
+	users.Get("/:handle/posts", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserPosts)
+	users.Get("/:handle/replies", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserReplies)
+	users.Get("/:handle/likes", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserLikes)
 	users.Get("/:handle", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetProfile)
 
 	log.Fatal(app.Listen(":8080"))

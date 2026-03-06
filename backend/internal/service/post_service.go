@@ -19,6 +19,9 @@ type PostService interface {
 	GetPosts(ctx context.Context, userID *uuid.UUID) ([]dto.PostDetailResponse, error)
 	CreateReply(ctx context.Context, parentID, authorID uuid.UUID, req dto.CreateReplyRequest) (*dto.PostDetailResponse, error)
 	ListReplies(ctx context.Context, parentID uuid.UUID, userID *uuid.UUID) ([]dto.PostDetailResponse, error)
+	ListPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
+	ListRepliesByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
+	ListLikedPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
 }
 
 const maxAuthorThreadDepth = 10
@@ -283,4 +286,63 @@ func (s *postService) ListReplies(ctx context.Context, parentID uuid.UUID, userI
 		responses[i] = dto.ToPostDetailResponse(r)
 	}
 	return responses, nil
+}
+
+func (s *postService) toPostDetailResponses(posts []model.PostWithAuthor) []dto.PostDetailResponse {
+	responses := make([]dto.PostDetailResponse, len(posts))
+	for i, p := range posts {
+		responses[i] = dto.ToPostDetailResponse(p)
+	}
+	return responses
+}
+
+func (s *postService) ListPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
+	var posts []model.PostWithAuthor
+	var err error
+
+	if viewerID != nil {
+		posts, err = s.postRepo.FindByAuthorHandleWithUser(ctx, handle, 50, 0, *viewerID)
+	} else {
+		posts, err = s.postRepo.FindByAuthorHandle(ctx, handle, 50, 0)
+	}
+
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve user posts")
+	}
+
+	return s.toPostDetailResponses(posts), nil
+}
+
+func (s *postService) ListRepliesByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
+	var posts []model.PostWithAuthor
+	var err error
+
+	if viewerID != nil {
+		posts, err = s.postRepo.FindRepliesByAuthorHandleWithUser(ctx, handle, 50, 0, *viewerID)
+	} else {
+		posts, err = s.postRepo.FindRepliesByAuthorHandle(ctx, handle, 50, 0)
+	}
+
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve user replies")
+	}
+
+	return s.toPostDetailResponses(posts), nil
+}
+
+func (s *postService) ListLikedPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error) {
+	var posts []model.PostWithAuthor
+	var err error
+
+	if viewerID != nil {
+		posts, err = s.postRepo.FindLikedByUserHandleWithViewer(ctx, handle, 50, 0, *viewerID)
+	} else {
+		posts, err = s.postRepo.FindLikedByUserHandle(ctx, handle, 50, 0)
+	}
+
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve liked posts")
+	}
+
+	return s.toPostDetailResponses(posts), nil
 }

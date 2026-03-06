@@ -24,10 +24,17 @@ type PostResponse struct {
 	UpdatedAt  string `json:"updatedAt"`
 }
 
+type ParentPostSummary struct {
+	ID      string     `json:"id"`
+	Content string     `json:"content"`
+	Author  PostAuthor `json:"author"`
+}
+
 type PostDetailResponse struct {
 	ID         string               `json:"id"`
 	AuthorID   string               `json:"authorId"`
 	ParentID   *string              `json:"parentId"`
+	Parent     *ParentPostSummary   `json:"parent,omitempty"`
 	Content    string               `json:"content"`
 	Visibility string               `json:"visibility"`
 	Author     PostAuthor           `json:"author"`
@@ -61,7 +68,7 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		parentID = &s
 	}
 
-	return PostDetailResponse{
+	resp := PostDetailResponse{
 		ID:         p.ID.String(),
 		AuthorID:   p.AuthorID.String(),
 		ParentID:   parentID,
@@ -78,4 +85,25 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		CreatedAt:  p.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:  p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
+
+	if p.ParentPostID != nil && p.ParentContent != nil && p.ParentAuthorUsername != nil {
+		resp.Parent = &ParentPostSummary{
+			ID:      p.ParentPostID.String(),
+			Content: *p.ParentContent,
+			Author: PostAuthor{
+				Username:        *p.ParentAuthorUsername,
+				DisplayName:     derefStr(p.ParentAuthorDisplayName),
+				ProfileImageURL: derefStr(p.ParentAuthorProfileImageURL),
+			},
+		}
+	}
+
+	return resp
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
