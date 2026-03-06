@@ -17,6 +17,7 @@ type PollRepository interface {
 	Unvote(ctx context.Context, pollID, userID uuid.UUID, optionIndex int16) error
 	GetUserVote(ctx context.Context, pollID, userID uuid.UUID) (*int16, error)
 	FindByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID]model.Poll, map[uuid.UUID][]model.PollOption, error)
+	DeleteByPostID(ctx context.Context, postID uuid.UUID) error
 }
 
 type pollRepository struct {
@@ -259,4 +260,12 @@ func (r *pollRepository) FindByPostIDs(ctx context.Context, postIDs []uuid.UUID)
 	}
 
 	return pollsByPostID, optionsByPollID, nil
+}
+
+func (r *pollRepository) DeleteByPostID(ctx context.Context, postID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM polls WHERE post_id = $1`, postID)
+	if err != nil {
+		return fmt.Errorf("failed to delete poll by post_id: %w", err)
+	}
+	return nil
 }

@@ -46,6 +46,10 @@ func (m *mockPollRepoForVote) FindByPostIDs(_ context.Context, _ []uuid.UUID) (m
 	return nil, nil, nil
 }
 
+func (m *mockPollRepoForVote) DeleteByPostID(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 type mockPostRepoForPoll struct {
 	post *model.PostWithAuthor
 	err  error
@@ -103,6 +107,18 @@ func (m *mockPostRepoForPoll) IncrementViewCount(_ context.Context, _ uuid.UUID)
 }
 
 func (m *mockPostRepoForPoll) IncrementViewCountBatch(_ context.Context, _ []uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForPoll) Update(_ context.Context, _ uuid.UUID, _ string, _ model.Visibility, _ *float64, _ *float64, _ *string) error {
+	return nil
+}
+
+func (m *mockPostRepoForPoll) SoftDelete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForPoll) SoftDeleteReply(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
 	return nil
 }
 

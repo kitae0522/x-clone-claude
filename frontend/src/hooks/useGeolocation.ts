@@ -6,8 +6,8 @@ interface LocationState {
   name: string;
 }
 
-export function useGeolocation() {
-  const [location, setLocation] = useState<LocationState | null>(null);
+export function useGeolocation(initialLocation?: LocationState | null) {
+  const [location, setLocation] = useState<LocationState | null>(initialLocation ?? null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

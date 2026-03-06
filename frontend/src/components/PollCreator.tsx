@@ -65,7 +65,7 @@ export default function PollCreator({
               onChange={(e) => handleOptionChange(index, e.target.value)}
               placeholder={`선택지 ${index + 1}`}
               maxLength={25}
-              className="flex-1 rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
             <span className="shrink-0 text-[11px] text-muted-foreground">
               {option.length}/25
@@ -101,10 +101,10 @@ export default function PollCreator({
         <select
           value={durationMinutes}
           onChange={(e) => onDurationChange(Number(e.target.value))}
-          className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
         >
           {DURATION_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <option key={opt.value} value={opt.value} className="bg-background text-foreground">
               {opt.label}
             </option>
           ))}

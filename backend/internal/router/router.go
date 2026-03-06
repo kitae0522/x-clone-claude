@@ -40,6 +40,8 @@ func Setup(p Params) {
 	posts.Get("/", middleware.OptionalAuth(jwtSecret), p.PostHandler.GetPosts)
 	posts.Post("/", middleware.AuthRequired(jwtSecret), p.PostHandler.CreatePost)
 	posts.Get("/:id", middleware.OptionalAuth(jwtSecret), p.PostHandler.GetPostByID)
+	posts.Put("/:id", middleware.AuthRequired(jwtSecret), p.PostHandler.UpdatePost)
+	posts.Delete("/:id", middleware.AuthRequired(jwtSecret), p.PostHandler.DeletePost)
 	posts.Post("/:id/reply", middleware.AuthRequired(jwtSecret), p.PostHandler.CreateReply)
 	posts.Get("/:id/replies", middleware.OptionalAuth(jwtSecret), p.PostHandler.ListReplies)
 	posts.Post("/:id/like", middleware.AuthRequired(jwtSecret), p.LikeHandler.Like)

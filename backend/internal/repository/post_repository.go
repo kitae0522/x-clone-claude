@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 )
@@ -28,6 +29,9 @@ type PostRepository interface {
 	FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error)
 	IncrementViewCount(ctx context.Context, id uuid.UUID) error
 	IncrementViewCountBatch(ctx context.Context, ids []uuid.UUID) error
+	Update(ctx context.Context, id uuid.UUID, content string, visibility model.Visibility, locationLat *float64, locationLng *float64, locationName *string) error
+	SoftDelete(ctx context.Context, id uuid.UUID) error
+	SoftDeleteReply(ctx context.Context, id uuid.UUID, parentID uuid.UUID) error
 }
 
 type postRepository struct {
@@ -58,7 +62,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
-		WHERE p.id = $1`
+		WHERE p.id = $1 AND p.deleted_at IS NULL`
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
@@ -82,6 +86,7 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id IS NULL
 		  AND p.visibility = 'public'
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -118,7 +123,7 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
-		WHERE p.id = $1`
+		WHERE p.id = $1 AND p.deleted_at IS NULL`
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
@@ -152,6 +157,7 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		    ))
 		    OR (p.visibility = 'private' AND p.author_id = $3)
 		  )
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -218,6 +224,7 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at ASC
 		LIMIT $2 OFFSET $3`
 
@@ -253,6 +260,7 @@ func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, au
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1 AND p.author_id = $2
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at ASC
 		LIMIT 1`
 
@@ -280,6 +288,7 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1 AND p.author_id = $2
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at ASC
 		LIMIT 1`
 
@@ -307,6 +316,7 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1
+		  AND p.deleted_at IS NULL
 		ORDER BY p.created_at ASC
 		LIMIT $2 OFFSET $4`
 
@@ -373,7 +383,7 @@ func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, 
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE u.username = $1 AND p.parent_id IS NULL
-		  AND p.visibility = 'public'
+		  AND p.visibility = 'public' AND p.deleted_at IS NULL
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -393,7 +403,7 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
-		WHERE u.username = $1 AND p.parent_id IS NULL
+		WHERE u.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
 		  AND (
 		    p.visibility = 'public'
 		    OR (p.visibility = 'follower' AND (
@@ -452,7 +462,7 @@ func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle s
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
 		WHERE u.username = $1 AND p.parent_id IS NOT NULL
-		  AND p.visibility = 'public'
+		  AND p.visibility = 'public' AND p.deleted_at IS NULL
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -476,7 +486,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 		JOIN users u ON p.author_id = u.id
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
-		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		WHERE u.username = $1 AND p.parent_id IS NOT NULL AND p.deleted_at IS NULL
 		  AND (
 		    p.visibility = 'public'
 		    OR (p.visibility = 'follower' AND (
@@ -505,7 +515,7 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 		JOIN posts p ON p.id = lk.post_id
 		JOIN users u ON p.author_id = u.id
 		WHERE lk.user_id = target.id
-		  AND p.visibility = 'public'
+		  AND p.visibility = 'public' AND p.deleted_at IS NULL
 		ORDER BY lk.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -527,7 +537,7 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		JOIN users target ON target.username = $1
 		JOIN posts p ON p.id = lk.post_id
 		JOIN users u ON p.author_id = u.id
-		WHERE lk.user_id = target.id
+		WHERE lk.user_id = target.id AND p.deleted_at IS NULL
 		  AND (
 		    p.visibility = 'public'
 		    OR (p.visibility = 'follower' AND (
@@ -563,4 +573,53 @@ func (r *postRepository) IncrementViewCountBatch(ctx context.Context, ids []uuid
 		return fmt.Errorf("failed to batch increment view count: %w", err)
 	}
 	return nil
+}
+
+func (r *postRepository) Update(ctx context.Context, id uuid.UUID, content string, visibility model.Visibility, locationLat *float64, locationLng *float64, locationName *string) error {
+	query := `UPDATE posts SET content = $1, visibility = $2, location_lat = $3, location_lng = $4, location_name = $5, updated_at = NOW() WHERE id = $6 AND deleted_at IS NULL`
+	result, err := r.pool.Exec(ctx, query, content, string(visibility), locationLat, locationLng, locationName, id)
+	if err != nil {
+		return fmt.Errorf("failed to update post: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *postRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `UPDATE posts SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return fmt.Errorf("failed to soft delete post: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *postRepository) SoftDeleteReply(ctx context.Context, id uuid.UUID, parentID uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	result, err := tx.Exec(ctx, `UPDATE posts SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return fmt.Errorf("failed to soft delete reply: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE posts SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = $1`,
+		parentID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to decrement reply_count: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }

@@ -49,3 +49,25 @@
 - 프론트엔드에서 handle만 알고 있으므로 별도 user ID 조회 단계 없이 한 번의 쿼리로 해결
 - 좋아요 목록은 likes 테이블 + users(target) + posts + users(author) 4-way JOIN
 **트레이드오프**: Repository 메서드 수 증가 (6개), 하지만 각각 단일 쿼리로 N+1 없음
+
+## 2026-03-06 — Post/Reply Soft Delete 패턴
+**상황**: 삭제된 글을 DB에서 완전히 제거(hard delete)할지, 논리적으로만 삭제(soft delete)할지
+**결정**: `deleted_at TIMESTAMPTZ` 컬럼 기반 soft delete
+**이유**:
+- 데이터 보존 및 감사 추적 가능
+- 향후 복구 기능 확장 용이
+- 삭제된 글 통계 분석 가능
+**구현**: 모든 SELECT 쿼리(14개+)에 `WHERE deleted_at IS NULL` 조건, 부분 인덱스로 성능 보완
+**트레이드오프**: 쿼리 복잡도 증가, 주기적 데이터 정리(purge) 필요
+
+## 2026-03-06 — Reply 삭제 권한: Post 작성자 확장
+**상황**: Reply 삭제를 작성자 본인만 허용할지, 부모 Post 작성자에게도 허용할지
+**결정**: Reply 작성자 + 부모 Post 작성자 모두 삭제 가능
+**이유**: X/Twitter와 동일한 패턴, Post 작성자가 자기 글의 답글을 관리할 수 있어야 함
+**구현**: Service 레이어에서 `parentPost.AuthorID == userID` 추가 검증 (ReBAC)
+
+## 2026-03-06 — 부분 업데이트(Partial Update) 포인터 타입
+**상황**: UpdatePost 시 변경된 필드만 업데이트하되, 명시적 제거(null)와 미변경을 구분해야 함
+**결정**: `*string` 포인터 타입 + `ClearLocation`/`ClearPoll` boolean 플래그
+**이유**: Go JSON unmarshaling에서 `null` → `nil` 포인터, 필드 부재 → 포인터 그대로 nil 구분 가능
+**트레이드오프**: DTO 복잡도 증가, 하지만 정확한 의도 표현 가능

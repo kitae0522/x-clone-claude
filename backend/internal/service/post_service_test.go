@@ -131,6 +131,37 @@ func (m *mockPostRepo) IncrementViewCountBatch(_ context.Context, _ []uuid.UUID)
 	return nil
 }
 
+func (m *mockPostRepo) Update(_ context.Context, id uuid.UUID, content string, visibility model.Visibility, locationLat *float64, locationLng *float64, locationName *string) error {
+	if p, ok := m.posts[id]; ok {
+		p.Content = content
+		p.Visibility = visibility
+		p.LocationLat = locationLat
+		p.LocationLng = locationLng
+		p.LocationName = locationName
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
+func (m *mockPostRepo) SoftDelete(_ context.Context, id uuid.UUID) error {
+	if _, ok := m.posts[id]; ok {
+		delete(m.posts, id)
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
+func (m *mockPostRepo) SoftDeleteReply(_ context.Context, id uuid.UUID, parentID uuid.UUID) error {
+	if _, ok := m.posts[id]; ok {
+		delete(m.posts, id)
+		if parent, ok := m.posts[parentID]; ok {
+			parent.ReplyCount--
+		}
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
 type mockPollRepo struct{}
 
 func newMockPollRepo() *mockPollRepo {
@@ -159,6 +190,10 @@ func (m *mockPollRepo) GetUserVote(_ context.Context, _, _ uuid.UUID) (*int16, e
 
 func (m *mockPollRepo) FindByPostIDs(_ context.Context, _ []uuid.UUID) (map[uuid.UUID]model.Poll, map[uuid.UUID][]model.PollOption, error) {
 	return nil, nil, nil
+}
+
+func (m *mockPollRepo) DeleteByPostID(_ context.Context, _ uuid.UUID) error {
+	return nil
 }
 
 func TestCreatePost_Success(t *testing.T) {

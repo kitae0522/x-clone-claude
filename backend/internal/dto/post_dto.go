@@ -7,7 +7,7 @@ import (
 type CreatePostRequest struct {
 	Content    string           `json:"content"    validate:"omitempty,max=500"`
 	Visibility string           `json:"visibility" validate:"omitempty,oneof=public follower private"`
-	MediaIds   []string         `json:"mediaIds"   validate:"omitempty,max=4"`
+	MediaIds   []string         `json:"mediaIds"   validate:"omitempty,max=4,dive,required"`
 	Location   *LocationRequest `json:"location"`
 	Poll       *PollRequest     `json:"poll"`
 }
@@ -88,9 +88,23 @@ type PostDetailResponse struct {
 	UpdatedAt    string               `json:"updatedAt"`
 }
 
+type UpdatePostRequest struct {
+	Content       *string          `json:"content"        validate:"omitempty,max=500"`
+	Visibility    *string          `json:"visibility"     validate:"omitempty,oneof=public follower private"`
+	MediaIds      *[]string        `json:"mediaIds"       validate:"omitempty,max=4,dive,required"`
+	Location      *LocationRequest `json:"location"`
+	ClearLocation bool             `json:"clearLocation"`
+	Poll          *PollRequest     `json:"poll"`
+	ClearPoll     bool             `json:"clearPoll"`
+}
+
+type DeletePostResponse struct {
+	Message string `json:"message"`
+}
+
 type CreateReplyRequest struct {
-	Content  string           `json:"content"  validate:"required,min=1,max=500"`
-	MediaIds []string         `json:"mediaIds" validate:"omitempty,max=4"`
+	Content  string           `json:"content"  validate:"omitempty,max=500"`
+	MediaIds []string         `json:"mediaIds" validate:"omitempty,max=4,dive,required"`
 	Location *LocationRequest `json:"location"`
 	Poll     *PollRequest     `json:"poll"`
 }

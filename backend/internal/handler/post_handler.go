@@ -130,6 +130,66 @@ func (h *PostHandler) ListReplies(c *fiber.Ctx) error {
 	})
 }
 
+func (h *PostHandler) UpdatePost(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	requesterID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	postIDStr := c.Params("id")
+	postID, err := uuid.Parse(postIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	var req dto.UpdatePostRequest
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
+	}
+
+	resp, err := h.postService.UpdatePost(c.Context(), postID, requesterID, req)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    resp,
+	})
+}
+
+func (h *PostHandler) DeletePost(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	requesterID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	postIDStr := c.Params("id")
+	postID, err := uuid.Parse(postIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	if err := h.postService.DeletePost(c.Context(), postID, requesterID); err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    dto.DeletePostResponse{Message: "post deleted successfully"},
+	})
+}
+
 func extractOptionalUserID(c *fiber.Ctx) *uuid.UUID {
 	userIDStr, ok := c.Locals("userID").(string)
 	if !ok {

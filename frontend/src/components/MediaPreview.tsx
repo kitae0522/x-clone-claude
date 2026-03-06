@@ -101,6 +101,42 @@ export default function MediaPreview({ uploads, mediaItems, onRemove }: MediaPre
           </div>
         );
       })}
+
+      {/* Existing media items not associated with uploads (edit mode) */}
+      {mediaItems
+        .filter((m) => !uploads.some((u) => u.media?.id === m.id))
+        .map((media) => (
+          <div
+            key={media.id}
+            className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-muted"
+          >
+            {media.type === "video" ? (
+              <video
+                src={media.url}
+                className="h-full w-full object-cover"
+                muted
+              />
+            ) : (
+              <img
+                src={media.url}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onRemove(media.id)}
+              className="absolute right-1 top-1 cursor-pointer rounded-full border-none bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
+            >
+              <X size={12} />
+            </button>
+            {media.type === "gif" && (
+              <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-bold text-white">
+                GIF
+              </span>
+            )}
+          </div>
+        ))}
     </div>
   );
 }

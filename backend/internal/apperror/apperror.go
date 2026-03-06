@@ -15,6 +15,10 @@ func BadRequest(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 400, Message: fmt.Sprintf(msg, args...)}
 }
 
+func Forbidden(msg string, args ...interface{}) *AppError {
+	return &AppError{Code: 403, Message: fmt.Sprintf(msg, args...)}
+}
+
 func Unauthorized(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 401, Message: fmt.Sprintf(msg, args...)}
 }
