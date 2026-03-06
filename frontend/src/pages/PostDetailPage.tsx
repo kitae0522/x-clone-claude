@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Bookmark, Heart, MessageCircle, Repeat2, Share, ArrowLeft, MapPin } from "lucide-react";
+import {
+  Bookmark,
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Share,
+  ArrowLeft,
+  MapPin,
+} from "lucide-react";
 import { usePostDetail, useParentChain } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -181,11 +189,7 @@ export default function PostDetailPage() {
         {/* Poll */}
         {post.poll && (
           <div className="mb-4">
-            <PollDisplay
-              poll={post.poll}
-              postId={postId}
-              isOwnPost={isOwner}
-            />
+            <PollDisplay poll={post.poll} postId={postId} />
           </div>
         )}
 

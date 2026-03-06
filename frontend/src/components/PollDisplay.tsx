@@ -8,16 +8,17 @@ import { Check } from "lucide-react";
 interface PollDisplayProps {
   poll: PollData;
   postId: string;
-  isOwnPost: boolean;
 }
 
-export default function PollDisplay({ poll, postId, isOwnPost }: PollDisplayProps) {
+export default function PollDisplay({ poll, postId }: PollDisplayProps) {
   const { user } = useAuth();
   const voteMutation = useVote(postId);
-  const [optimisticVotedIndex, setOptimisticVotedIndex] = useState<number | null>(null);
+  const [optimisticVotedIndex, setOptimisticVotedIndex] = useState<
+    number | null
+  >(null);
 
   const hasVoted = poll.votedIndex >= 0 || optimisticVotedIndex !== null;
-  const showResults = hasVoted || poll.isExpired || isOwnPost;
+  const showResults = hasVoted || poll.isExpired;
   const votedIndex = optimisticVotedIndex ?? poll.votedIndex;
 
   const expiresAt = new Date(poll.expiresAt);
@@ -38,20 +39,24 @@ export default function PollDisplay({ poll, postId, isOwnPost }: PollDisplayProp
 
   function handleVote(e: React.MouseEvent, optionIndex: number) {
     e.stopPropagation();
-    if (!user || hasVoted || poll.isExpired || isOwnPost) return;
+    if (!user || hasVoted || poll.isExpired) return;
 
     setOptimisticVotedIndex(optionIndex);
     voteMutation.mutate(optionIndex);
   }
 
-  const totalVotes = optimisticVotedIndex !== null ? poll.totalVotes + 1 : poll.totalVotes;
+  const totalVotes =
+    optimisticVotedIndex !== null ? poll.totalVotes + 1 : poll.totalVotes;
 
   return (
     <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
       {poll.options.map((option, index) => {
         const voteCount =
-          optimisticVotedIndex === index ? option.voteCount + 1 : option.voteCount;
-        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+          optimisticVotedIndex === index
+            ? option.voteCount + 1
+            : option.voteCount;
+        const percentage =
+          totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
         const isSelected = votedIndex === index;
         const isWinning =
           showResults &&
@@ -59,7 +64,10 @@ export default function PollDisplay({ poll, postId, isOwnPost }: PollDisplayProp
 
         if (showResults) {
           return (
-            <div key={index} className="relative overflow-hidden rounded-lg border border-border p-3">
+            <div
+              key={index}
+              className="relative overflow-hidden rounded-lg border border-border p-3"
+            >
               <div
                 className={cn(
                   "absolute inset-0 rounded-lg transition-all",
@@ -69,14 +77,17 @@ export default function PollDisplay({ poll, postId, isOwnPost }: PollDisplayProp
               />
               <div className="relative flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {isSelected && (
-                    <Check size={16} className="text-primary" />
-                  )}
+                  {isSelected && <Check size={16} className="text-primary" />}
                   <span className={cn("text-sm", isWinning && "font-bold")}>
                     {option.text}
                   </span>
                 </div>
-                <span className={cn("text-sm", isWinning ? "font-bold" : "text-muted-foreground")}>
+                <span
+                  className={cn(
+                    "text-sm",
+                    isWinning ? "font-bold" : "text-muted-foreground",
+                  )}
+                >
                   {percentage}%
                 </span>
               </div>

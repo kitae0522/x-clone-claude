@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bookmark, Heart, MessageCircle, Repeat2, Share, MapPin } from "lucide-react";
+import {
+  Bookmark,
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Share,
+  MapPin,
+} from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -69,8 +76,8 @@ function PostCard({ post }: PostCardProps) {
         <div
           className="mt-0.5 shrink-0 cursor-pointer"
           onClick={(e) => {
-            e.stopPropagation()
-            navigate(`/${post.author.username}`)
+            e.stopPropagation();
+            navigate(`/${post.author.username}`);
           }}
         >
           <UserAvatar
@@ -178,13 +185,7 @@ function PostCard({ post }: PostCardProps) {
           )}
 
           {/* Poll */}
-          {post.poll && (
-            <PollDisplay
-              poll={post.poll}
-              postId={post.id}
-              isOwnPost={currentUser?.username === post.author.username}
-            />
-          )}
+          {post.poll && <PollDisplay poll={post.poll} postId={post.id} />}
 
           {/* Action Buttons */}
           <div className="-ml-2 mt-1.5 flex max-w-[425px] items-center justify-between">

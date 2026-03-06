@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
@@ -29,18 +28,6 @@ func NewPollService(pollRepo repository.PollRepository, postRepo repository.Post
 }
 
 func (s *pollService) Vote(ctx context.Context, postID, userID uuid.UUID, optionIndex int16) (*dto.PollResponse, error) {
-	post, err := s.postRepo.FindByID(ctx, postID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, apperror.NotFound("post not found")
-		}
-		return nil, apperror.Internal("failed to find post")
-	}
-
-	if post.AuthorID == userID {
-		return nil, apperror.BadRequest("cannot vote on your own poll")
-	}
-
 	poll, options, err := s.pollRepo.FindByPostID(ctx, postID)
 	if err != nil {
 		return nil, apperror.Internal("failed to find poll")
