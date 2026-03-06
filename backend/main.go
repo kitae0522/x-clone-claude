@@ -1,88 +1,84 @@
 package main
 
 import (
-	"log"
+	"context"
+	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/handler"
-	"github.com/kitae0522/twitter-clone-claude/backend/internal/middleware"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/router"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/service"
 	"github.com/kitae0522/twitter-clone-claude/backend/pkg/config"
 	"github.com/kitae0522/twitter-clone-claude/backend/pkg/database"
+	"github.com/kitae0522/twitter-clone-claude/backend/pkg/logger"
+	"go.uber.org/fx"
 )
 
 func main() {
-	cfg := config.Load()
+	fx.New(
+		fx.Provide(
+			config.Load,
+			provideLogger,
+			providePool,
+			provideFiberApp,
+		),
+		repository.Module,
+		service.Module,
+		handler.Module,
+		fx.Invoke(router.Setup),
+		fx.Invoke(startServer),
+	).Run()
+}
 
+func provideLogger(cfg *config.Config) *slog.Logger {
+	l := logger.New(cfg.Env)
+	slog.SetDefault(l)
+	return l
+}
+
+func providePool(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger) (*pgxpool.Pool, error) {
 	pool, err := database.Connect(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return nil, err
 	}
-	defer pool.Close()
 
 	if err := database.Migrate(pool, "migrations"); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		pool.Close()
+		return nil, err
 	}
 
-	app := fiber.New()
-
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			log.Info("closing database pool")
+			pool.Close()
+			return nil
+		},
 	})
 
-	postRepo := repository.NewPostRepository(pool)
-	postService := service.NewPostService(postRepo)
-	postHandler := handler.NewPostHandler(postService)
+	log.Info("database connected")
+	return pool, nil
+}
 
-	likeRepo := repository.NewLikeRepository(pool)
-	likeService := service.NewLikeService(likeRepo, postRepo)
-	likeHandler := handler.NewLikeHandler(likeService)
+func provideFiberApp() *fiber.App {
+	return fiber.New()
+}
 
-	userRepo := repository.NewUserRepository(pool)
-	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryHours)
-	authHandler := handler.NewAuthHandler(authService)
-
-	followRepo := repository.NewFollowRepository(pool)
-	followService := service.NewFollowService(followRepo, userRepo)
-	followHandler := handler.NewFollowHandler(followService)
-
-	bookmarkRepo := repository.NewBookmarkRepository(pool)
-	bookmarkService := service.NewBookmarkService(bookmarkRepo, postRepo)
-	bookmarkHandler := handler.NewBookmarkHandler(bookmarkService)
-
-	userService := service.NewUserService(userRepo, followRepo)
-	userHandler := handler.NewUserHandler(userService, postService)
-
-	api := app.Group("/api")
-	posts := api.Group("/posts")
-	posts.Get("/", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPosts)
-	posts.Post("/", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreatePost)
-	posts.Get("/:id", middleware.OptionalAuth(cfg.JWTSecret), postHandler.GetPostByID)
-	posts.Post("/:id/reply", middleware.AuthRequired(cfg.JWTSecret), postHandler.CreateReply)
-	posts.Get("/:id/replies", middleware.OptionalAuth(cfg.JWTSecret), postHandler.ListReplies)
-	posts.Post("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Like)
-	posts.Delete("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Unlike)
-	posts.Post("/:id/bookmark", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.Bookmark)
-	posts.Delete("/:id/bookmark", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.Unbookmark)
-
-	auth := api.Group("/auth")
-	auth.Post("/register", authHandler.Register)
-	auth.Post("/login", authHandler.Login)
-	auth.Post("/logout", authHandler.Logout)
-	auth.Get("/me", middleware.AuthRequired(cfg.JWTSecret), authHandler.Me)
-
-	users := api.Group("/users")
-	users.Get("/bookmarks", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.ListBookmarks)
-	users.Put("/profile", middleware.AuthRequired(cfg.JWTSecret), userHandler.UpdateProfile)
-	users.Post("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Follow)
-	users.Delete("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Unfollow)
-	users.Get("/:handle/following", followHandler.GetFollowing)
-	users.Get("/:handle/followers", followHandler.GetFollowers)
-	users.Get("/:handle/posts", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserPosts)
-	users.Get("/:handle/replies", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserReplies)
-	users.Get("/:handle/likes", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetUserLikes)
-	users.Get("/:handle", middleware.OptionalAuth(cfg.JWTSecret), userHandler.GetProfile)
-
-	log.Fatal(app.Listen(":8080"))
+func startServer(lc fx.Lifecycle, app *fiber.App, log *slog.Logger) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				if err := app.Listen(":8080"); err != nil {
+					log.Error("server failed", slog.String("error", err.Error()))
+				}
+			}()
+			log.Info("server started", slog.String("addr", ":8080"))
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			log.Info("shutting down server")
+			return app.Shutdown()
+		},
+	})
 }

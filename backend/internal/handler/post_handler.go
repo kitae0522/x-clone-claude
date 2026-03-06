@@ -28,8 +28,8 @@ func (h *PostHandler) CreatePost(c *fiber.Ctx) error {
 	}
 
 	var req dto.CreatePostRequest
-	if err := c.BodyParser(&req); err != nil {
-		return respondError(c, apperror.BadRequest("invalid request body"))
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	resp, err := h.postService.CreatePost(c.Context(), authorID, req)
@@ -95,8 +95,8 @@ func (h *PostHandler) CreateReply(c *fiber.Ctx) error {
 	}
 
 	var req dto.CreateReplyRequest
-	if err := c.BodyParser(&req); err != nil {
-		return respondError(c, apperror.BadRequest("invalid request body"))
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	resp, err := h.postService.CreateReply(c.Context(), parentID, authorID, req)

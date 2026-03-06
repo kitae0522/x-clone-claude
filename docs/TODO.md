@@ -68,7 +68,16 @@
 - [ ] 코드 리뷰
 - [ ] PR 생성 및 이슈 연결
 
+## Phase 9: 백엔드 인프라 개선 (완료)
+- [x] Request Validator (go-playground/validator/v10) - DTO 태그 + 공통 헬퍼
+- [x] Structured Logging (log/slog) - 로거 팩토리 + 요청 로깅 미들웨어
+- [x] Dependency Injection (uber-go/fx) - 모듈 분리 + 라우터 분리 + main.go 리팩토링
+- [x] 테스트 작성 (validator 20 + logger 3 = 23 cases)
+- [x] 코드 리뷰 (버그 1건 수정, 개선 2건 적용)
+- [ ] PR 생성 및 이슈 연결
+
 ## 최근 변경 로그
+- 2026-03-06: 백엔드 인프라 개선 - Validator, Logging(slog), DI(fx) 도입
 - 2026-03-06: 이슈 #31 Profile 페이지 탭 콘텐츠 구현 (게시물/답글/좋아요)
 - 2026-03-06: 이슈 #19 주요 UI 레이아웃 및 스타일링 고도화 (3단 레이아웃, 반응형)
 - 2026-03-06: 이슈 #18 shadcn/ui 기반 공통 UI 컴포넌트 시스템 구축

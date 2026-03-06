@@ -8,8 +8,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
+	"github.com/kitae0522/twitter-clone-claude/backend/pkg/config"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func testConfig() *config.Config {
+	return &config.Config{
+		Env:            "test",
+		JWTSecret:      "test-secret",
+		JWTExpiryHours: 24,
+	}
+}
 
 type mockUserRepo struct {
 	users       map[string]*model.User
@@ -75,7 +84,7 @@ func (m *mockUserRepo) ExistsByUsername(_ context.Context, username string) (boo
 
 func TestRegister_Success(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	resp, err := svc.Register(context.Background(), dto.RegisterRequest{
 		Email:    "test@example.com",
@@ -99,7 +108,7 @@ func TestRegister_Success(t *testing.T) {
 
 func TestRegister_DuplicateEmail(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
 		Email: "dup@example.com", Username: "user1", Password: "password123",
@@ -116,7 +125,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 
 func TestRegister_DuplicateUsername(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
 		Email: "a@example.com", Username: "dupuser", Password: "password123",
@@ -133,7 +142,7 @@ func TestRegister_DuplicateUsername(t *testing.T) {
 
 func TestLogin_Success(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
 		Email: "login@example.com", Username: "loginuser", Password: "password123",
@@ -153,7 +162,7 @@ func TestLogin_Success(t *testing.T) {
 
 func TestLogin_WrongEmail(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	_, err := svc.Login(context.Background(), dto.LoginRequest{
 		Email: "nonexistent@example.com", Password: "password123",
@@ -166,7 +175,7 @@ func TestLogin_WrongEmail(t *testing.T) {
 
 func TestLogin_WrongPassword(t *testing.T) {
 	repo := newMockUserRepo()
-	svc := NewAuthService(repo, "test-secret", 24)
+	svc := NewAuthService(repo, testConfig())
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), 10)
 	user := &model.User{

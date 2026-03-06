@@ -5,8 +5,8 @@ import (
 )
 
 type CreatePostRequest struct {
-	Content    string `json:"content"`
-	Visibility string `json:"visibility"`
+	Content    string `json:"content"    validate:"required,min=1,max=280"`
+	Visibility string `json:"visibility" validate:"omitempty,oneof=public friends private"`
 }
 
 type PostAuthor struct {
@@ -48,7 +48,7 @@ type PostDetailResponse struct {
 }
 
 type CreateReplyRequest struct {
-	Content string `json:"content"`
+	Content string `json:"content" validate:"required,min=1,max=280"`
 }
 
 func ToPostResponse(p model.Post) PostResponse {

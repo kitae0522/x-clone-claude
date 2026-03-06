@@ -11,6 +11,7 @@ import (
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
+	"github.com/kitae0522/twitter-clone-claude/backend/pkg/config"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,11 +27,11 @@ type authService struct {
 	expiryHours int
 }
 
-func NewAuthService(userRepo repository.UserRepository, jwtSecret string, expiryHours int) AuthService {
+func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) AuthService {
 	return &authService{
 		userRepo:    userRepo,
-		jwtSecret:   jwtSecret,
-		expiryHours: expiryHours,
+		jwtSecret:   cfg.JWTSecret,
+		expiryHours: cfg.JWTExpiryHours,
 	}
 }
 
