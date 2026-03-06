@@ -25,7 +25,14 @@ export default function ComposeForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Media upload
-  const { uploads, mediaItems, isUploading, addFiles, removeMedia, reset: resetMedia } = useMediaUpload();
+  const {
+    uploads,
+    mediaItems,
+    isUploading,
+    addFiles,
+    removeMedia,
+    reset: resetMedia,
+  } = useMediaUpload();
 
   // Location
   const {
@@ -53,7 +60,7 @@ export default function ComposeForm() {
         ? "text-warning"
         : "text-primary";
 
-  const hasMarkdown = /[*_`~>#\-\[\]()]/.test(content);
+  const hasMarkdown = /[*_`~>#\-[\]()]/.test(content);
   const hasContent = content.trim().length > 0 || mediaItems.length > 0;
   const canSubmit = hasContent && remaining >= 0 && !isPending && !isUploading;
 
@@ -73,9 +80,14 @@ export default function ComposeForm() {
       {
         content,
         visibility: "public",
-        mediaIds: mediaItems.length > 0 ? mediaItems.map((m) => m.id) : undefined,
+        mediaIds:
+          mediaItems.length > 0 ? mediaItems.map((m) => m.id) : undefined,
         location: location
-          ? { latitude: location.latitude, longitude: location.longitude, name: location.name }
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              name: location.name,
+            }
           : undefined,
         poll: showPoll
           ? {
@@ -278,7 +290,10 @@ export default function ComposeForm() {
           <div className="flex items-center gap-3">
             {charCount > 0 && (
               <div className="flex items-center gap-1.5">
-                <svg className="h-[26px] w-[26px] -rotate-90" viewBox="0 0 24 24">
+                <svg
+                  className="h-[26px] w-[26px] -rotate-90"
+                  viewBox="0 0 24 24"
+                >
                   <circle
                     cx="12"
                     cy="12"
