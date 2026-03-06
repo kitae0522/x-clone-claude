@@ -156,6 +156,16 @@ export interface PostDetail {
 
 export interface CreateReplyRequest {
   content: string;
+  mediaIds?: string[];
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+  };
+  poll?: {
+    options: string[];
+    durationMinutes: number;
+  };
 }
 
 export interface LikeStatusResponse {

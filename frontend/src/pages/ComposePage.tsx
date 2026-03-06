@@ -45,13 +45,8 @@ export default function ComposePage() {
     replyToId ?? "",
   );
 
-  const {
-    uploads,
-    mediaItems,
-    isUploading,
-    addFiles,
-    removeMedia,
-  } = useMediaUpload();
+  const { uploads, mediaItems, isUploading, addFiles, removeMedia } =
+    useMediaUpload();
 
   const {
     location,
@@ -95,8 +90,33 @@ export default function ComposePage() {
     if (!canSubmit) return;
 
     if (replyToId) {
+      if (showPoll) {
+        const filledOptions = pollOptions.filter((o) => o.trim().length > 0);
+        if (filledOptions.length < 2) {
+          toast.error("최소 2개의 선택지를 입력해주세요.");
+          return;
+        }
+      }
+
       createReply(
-        { content },
+        {
+          content,
+          mediaIds:
+            mediaItems.length > 0 ? mediaItems.map((m) => m.id) : undefined,
+          location: location
+            ? {
+                latitude: location.latitude,
+                longitude: location.longitude,
+                name: location.name,
+              }
+            : undefined,
+          poll: showPoll
+            ? {
+                options: pollOptions.filter((o) => o.trim().length > 0),
+                durationMinutes: pollDuration,
+              }
+            : undefined,
+        },
         {
           onSuccess: () => {
             toast.success("답글이 작성되었습니다.");
@@ -206,17 +226,13 @@ export default function ComposePage() {
           size="sm"
           disabled={!canSubmit}
         >
-          {isPending
-            ? "게시 중..."
-            : replyToId
-              ? "답글 작성"
-              : "게시하기"}
+          {isPending ? "게시 중..." : replyToId ? "답글 작성" : "게시하기"}
         </Button>
       </header>
 
       {/* Reply context */}
       {replyToId && parentPost && (
-        <div className="border-b border-border px-4 py-3">
+        <div className="border-border px-4 pt-3">
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
               <UserAvatar
@@ -264,7 +280,7 @@ export default function ComposePage() {
       )}
 
       {/* Compose area */}
-      <div className="flex gap-3 px-4 pt-3">
+      <div className={`flex gap-3 px-4 ${!replyToId ? "pt-3" : ""}`}>
         <UserAvatar
           profileImageUrl={user?.profileImageUrl}
           displayName={user?.displayName}
@@ -281,9 +297,7 @@ export default function ComposePage() {
             ref={textareaRef}
             className="w-full resize-none border-none bg-transparent py-2 text-xl shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
             placeholder={
-              replyToId
-                ? "답글을 입력하세요..."
-                : "무슨 일이 일어나고 있나요?"
+              replyToId ? "답글을 입력하세요..." : "무슨 일이 일어나고 있나요?"
             }
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -333,51 +347,47 @@ export default function ComposePage() {
           {/* Toolbar */}
           <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
             <div className="flex items-center gap-1">
-              {!replyToId && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleMediaButtonClick}
-                    className="cursor-pointer rounded-full border-none bg-transparent p-2 text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
-                    title="미디어 첨부"
-                  >
-                    <Image size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLocationClick}
-                    disabled={isLocationLoading}
-                    className={`cursor-pointer rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 ${
-                      location
-                        ? "text-primary"
-                        : "text-primary/70 hover:text-primary"
-                    } disabled:opacity-50`}
-                    title="위치 추가"
-                  >
-                    <MapPin size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePollToggle}
-                    className={`cursor-pointer rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 ${
-                      showPoll
-                        ? "text-primary"
-                        : "text-primary/70 hover:text-primary"
-                    }`}
-                    title="투표 만들기"
-                  >
-                    <BarChart3 size={18} />
-                  </button>
-                </>
-              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={handleMediaButtonClick}
+                className="cursor-pointer rounded-full border-none bg-transparent p-2 text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
+                title="미디어 첨부"
+              >
+                <Image size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={handleLocationClick}
+                disabled={isLocationLoading}
+                className={`cursor-pointer rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 ${
+                  location
+                    ? "text-primary"
+                    : "text-primary/70 hover:text-primary"
+                } disabled:opacity-50`}
+                title="위치 추가"
+              >
+                <MapPin size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={handlePollToggle}
+                className={`cursor-pointer rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 ${
+                  showPoll
+                    ? "text-primary"
+                    : "text-primary/70 hover:text-primary"
+                }`}
+                title="투표 만들기"
+              >
+                <BarChart3 size={18} />
+              </button>
 
               {hasMarkdown && (
                 <button
