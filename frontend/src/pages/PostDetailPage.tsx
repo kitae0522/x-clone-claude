@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Repeat2, Share, ArrowLeft } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Repeat2, Share, ArrowLeft } from "lucide-react";
 import { usePostDetail, useParentChain } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
+import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import ReplyForm from "@/components/ReplyForm";
 import ReplyCard from "@/components/ReplyCard";
 import ParentPostCard from "@/components/ParentPostCard";
+import ShareModal from "@/components/ShareModal";
 import { cn } from "@/lib/utils";
 
 export default function PostDetailPage() {
@@ -22,6 +24,7 @@ export default function PostDetailPage() {
   const { data: post, isLoading, error } = usePostDetail(postId);
   const { user: currentUser } = useAuth();
   const [isHoveringFollow, setIsHoveringFollow] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const authorUsername = post?.author.username ?? "";
   const isOwner = currentUser?.username === authorUsername;
@@ -32,6 +35,7 @@ export default function PostDetailPage() {
   const follow = useFollow(authorUsername);
   const unfollow = useUnfollow(authorUsername);
   const like = useLike(postId, post?.isLiked ?? false);
+  const bookmark = useBookmark(postId, post?.isBookmarked ?? false);
   const { data: parentChain } = useParentChain(post?.parentId ?? null);
 
   if (isLoading)
@@ -209,7 +213,28 @@ export default function PostDetailPage() {
               )}
             />
           </button>
-          <button className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10">
+          <button
+            onClick={() => {
+              if (!currentUser) return;
+              bookmark.mutate();
+            }}
+            disabled={bookmark.isPending}
+            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 disabled:opacity-50"
+          >
+            <Bookmark
+              size={20}
+              className={cn(
+                "transition-colors group-hover:text-primary",
+                post.isBookmarked
+                  ? "fill-primary text-primary"
+                  : "text-muted-foreground",
+              )}
+            />
+          </button>
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
+          >
             <Share
               size={20}
               className="text-muted-foreground transition-colors group-hover:text-primary"
@@ -217,6 +242,12 @@ export default function PostDetailPage() {
           </button>
         </div>
       </article>
+
+      <ShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        postId={postId}
+      />
 
       <ReplyForm postId={postId} />
 

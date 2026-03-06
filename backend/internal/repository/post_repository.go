@@ -105,7 +105,8 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $2 AND b.post_id = p.id) AS is_bookmarked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.id = $1`
@@ -114,7 +115,7 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
 		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-		&p.IsLiked,
+		&p.IsLiked, &p.IsBookmarked,
 	)
 	if err != nil {
 		return nil, err
@@ -127,7 +128,8 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id IS NULL
@@ -147,7 +149,7 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		if err := rows.Scan(
 			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-			&p.IsLiked,
+			&p.IsLiked, &p.IsBookmarked,
 		); err != nil {
 			return nil, err
 		}
@@ -247,7 +249,8 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1 AND p.author_id = $2
@@ -258,7 +261,7 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 	err := r.pool.QueryRow(ctx, query, postID, authorID, userID).Scan(
 		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-		&p.IsLiked,
+		&p.IsLiked, &p.IsBookmarked,
 	)
 	if err != nil {
 		return nil, err
@@ -271,7 +274,8 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id = $1
@@ -291,7 +295,7 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		if err := rows.Scan(
 			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-			&p.IsLiked,
+			&p.IsLiked, &p.IsBookmarked,
 		); err != nil {
 			return nil, err
 		}
@@ -320,7 +324,7 @@ func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
-			scanArgs = append(scanArgs, &p.IsLiked)
+			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked)
 		}
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, err
@@ -352,7 +356,8 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE u.username = $1 AND p.parent_id IS NULL
@@ -378,7 +383,7 @@ func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked boo
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
-			scanArgs = append(scanArgs, &p.IsLiked)
+			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked)
 		}
 		scanArgs = append(scanArgs,
 			&p.ParentPostID, &p.ParentContent,
@@ -419,6 +424,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
 		       pp.id, pp.content,
 		       pu.username, pu.display_name, pu.profile_image_url
 		FROM posts p
@@ -459,7 +465,8 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked
 		FROM likes lk
 		JOIN users target ON target.username = $1
 		JOIN posts p ON p.id = lk.post_id

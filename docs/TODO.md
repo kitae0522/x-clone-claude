@@ -55,6 +55,19 @@
 - [x] useUserPosts.ts hook (useUserPosts, useUserReplies, useUserLikes)
 - [x] ProfilePage.tsx 탭 콘텐츠 실제 데이터 연동 (PostCard 렌더링, 로딩/빈 상태)
 
+## Phase 8: 북마크 시스템 (진행중)
+- [x] bookmarks 테이블 마이그레이션 (#9)
+- [x] BookmarkRepository (Bookmark, Unbookmark, IsBookmarked, ListByUserID)
+- [x] BookmarkService (Bookmark, Unbookmark, ListBookmarks - cursor 기반 페이지네이션)
+- [x] BookmarkHandler (POST/DELETE /posts/:id/bookmark, GET /users/bookmarks)
+- [x] 라우팅 등록 (main.go, /bookmarks를 /:handle보다 먼저 등록)
+- [x] Frontend useBookmark hook (optimistic UI toggle)
+- [x] PostCard 북마크 버튼 추가
+- [x] ProfilePage 북마크 탭 (본인만 표시)
+- [ ] 테스트 작성
+- [ ] 코드 리뷰
+- [ ] PR 생성 및 이슈 연결
+
 ## 최근 변경 로그
 - 2026-03-06: 이슈 #31 Profile 페이지 탭 콘텐츠 구현 (게시물/답글/좋아요)
 - 2026-03-06: 이슈 #19 주요 UI 레이아웃 및 스타일링 고도화 (3단 레이아웃, 반응형)
