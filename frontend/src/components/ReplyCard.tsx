@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Heart, MessageCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Bookmark,
+  Eye,
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  Share,
+  Trash2,
+} from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
+import { useBookmark } from "@/hooks/useBookmark";
 import { useDeletePost } from "@/hooks/usePosts";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
+import ShareModal from "@/components/ShareModal";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
@@ -14,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -45,10 +57,13 @@ export default function ReplyCard({
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const like = useLike(reply.id, reply.isLiked, parentPostId);
+  const bookmark = useBookmark(reply.id, reply.isBookmarked);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const isOwner = currentUser?.username === reply.author.username;
-  const isParentAuthor = opUsername != null && currentUser?.username === opUsername;
+  const isParentAuthor =
+    opUsername != null && currentUser?.username === opUsername;
   const canDelete = isOwner || isParentAuthor;
   const isEdited = reply.updatedAt !== reply.createdAt;
   const deletePost = useDeletePost(reply.id);
@@ -137,7 +152,7 @@ export default function ReplyCard({
                 </span>
               )}
             </span>
-            {canDelete && (
+            {currentUser && (
               <div className="ml-auto" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -155,12 +170,38 @@ export default function ReplyCard({
                         수정
                       </DropdownMenuItem>
                     )}
+                    {canDelete && (
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 size={14} className="mr-2" />
+                        삭제
+                      </DropdownMenuItem>
+                    )}
+                    {canDelete && <DropdownMenuSeparator />}
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
-                      onClick={() => setShowDeleteDialog(true)}
+                      className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                      onClick={() => bookmark.mutate()}
                     >
-                      <Trash2 size={14} className="mr-2" />
-                      삭제
+                      <Bookmark
+                        size={14}
+                        className={cn(
+                          "mr-2",
+                          reply.isBookmarked && "fill-current",
+                        )}
+                      />
+                      {reply.isBookmarked ? "북마크 제거" : "북마크 추가"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTimeout(() => setShowShareModal(true), 0);
+                      }}
+                    >
+                      <Share size={14} className="mr-2" />
+                      공유하기
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -239,6 +280,12 @@ export default function ReplyCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        postId={reply.id}
+      />
 
       {authorThread.map((continuation, index) => (
         <ReplyCard

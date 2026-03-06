@@ -15,8 +15,6 @@ import {
 import VisibilityBadge from "@/components/VisibilityBadge";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
-import { useProfile } from "@/hooks/useProfile";
-import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
 import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
@@ -27,11 +25,11 @@ import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
 import { useDeletePost } from "@/hooks/usePosts";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -53,7 +51,6 @@ interface PostCardProps {
 function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const [isHoveringFollow, setIsHoveringFollow] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -61,31 +58,13 @@ function PostCard({ post }: PostCardProps) {
   const isEdited = post.updatedAt !== post.createdAt;
 
   const deletePost = useDeletePost(post.id);
-  const { data: authorProfile } = useProfile(post.author.username, !isOwner);
-  const follow = useFollow(post.author.username);
-  const unfollow = useUnfollow(post.author.username);
   const like = useLike(post.id, post.isLiked);
   const bookmark = useBookmark(post.id, post.isBookmarked);
-
-  function handleFollowClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (authorProfile?.isFollowing) {
-      unfollow.mutate();
-    } else {
-      follow.mutate();
-    }
-  }
 
   function handleLikeClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (!currentUser) return;
     like.mutate();
-  }
-
-  function handleBookmarkClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!currentUser) return;
-    bookmark.mutate();
   }
 
   return (
@@ -150,7 +129,7 @@ function PostCard({ post }: PostCardProps) {
               </span>
               <VisibilityBadge visibility={post.visibility} />
             </div>
-            {isOwner && (
+            {currentUser && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -160,46 +139,54 @@ function PostCard({ post }: PostCardProps) {
                     <MoreHorizontal size={16} />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuContent
+                  align="end"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {isOwner && (
+                    <>
+                      <DropdownMenuItem
+                        className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                        onClick={() => navigate(`/compose/edit/${post.id}`)}
+                      >
+                        <Pencil size={14} className="mr-2" />
+                        수정
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 size={14} className="mr-2" />
+                        삭제
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem
                     className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
-                    onClick={() => navigate(`/compose/edit/${post.id}`)}
+                    onClick={() => bookmark.mutate()}
                   >
-                    <Pencil size={14} className="mr-2" />
-                    수정
+                    <Bookmark
+                      size={14}
+                      className={cn(
+                        "mr-2",
+                        post.isBookmarked && "fill-current",
+                      )}
+                    />
+                    {post.isBookmarked ? "북마크 제거" : "북마크 추가"}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
-                    onClick={() => setShowDeleteDialog(true)}
+                    className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => setShowShareModal(true), 0);
+                    }}
                   >
-                    <Trash2 size={14} className="mr-2" />
-                    삭제
+                    <Share size={14} className="mr-2" />
+                    공유하기
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-            {!isOwner && currentUser && authorProfile && (
-              <Button
-                onClick={handleFollowClick}
-                onMouseEnter={() => setIsHoveringFollow(true)}
-                onMouseLeave={() => setIsHoveringFollow(false)}
-                variant={
-                  authorProfile.isFollowing
-                    ? isHoveringFollow
-                      ? "follow-danger"
-                      : "follow-active"
-                    : "follow"
-                }
-                size="sm"
-                className="ml-2 min-w-[80px] cursor-pointer"
-                disabled={follow.isPending || unfollow.isPending}
-              >
-                {authorProfile.isFollowing
-                  ? isHoveringFollow
-                    ? "언팔로우"
-                    : "팔로잉"
-                  : "팔로우"}
-              </Button>
             )}
           </div>
 
@@ -308,36 +295,6 @@ function PostCard({ post }: PostCardProps) {
                 {post.viewCount ? formatCompactNumber(post.viewCount) : ""}
               </span>
             </div>
-
-            {/* Bookmark */}
-            <button
-              onClick={handleBookmarkClick}
-              className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
-            >
-              <Bookmark
-                size={18}
-                className={cn(
-                  "transition-colors group-hover:text-primary",
-                  post.isBookmarked
-                    ? "fill-primary text-primary"
-                    : "text-muted-foreground",
-                )}
-              />
-            </button>
-
-            {/* Share */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowShareModal(true);
-              }}
-              className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
-            >
-              <Share
-                size={18}
-                className="text-muted-foreground transition-colors group-hover:text-primary"
-              />
-            </button>
           </div>
 
           <ShareModal
@@ -346,7 +303,10 @@ function PostCard({ post }: PostCardProps) {
             postId={post.id}
           />
 
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+          >
             <AlertDialogContent onClick={(e) => e.stopPropagation()}>
               <AlertDialogHeader>
                 <AlertDialogTitle>
