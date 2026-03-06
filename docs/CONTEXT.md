@@ -71,3 +71,12 @@
 **결정**: `*string` 포인터 타입 + `ClearLocation`/`ClearPoll` boolean 플래그
 **이유**: Go JSON unmarshaling에서 `null` → `nil` 포인터, 필드 부재 → 포인터 그대로 nil 구분 가능
 **트레이드오프**: DTO 복잡도 증가, 하지만 정확한 의도 표현 가능
+
+## 2026-03-07 — Profile Modal 이미지 업로드 방식 (#51)
+**상황**: 프로필 수정 모달에서 이미지 URL 직접 입력 방식의 UX 불편, Dialog 닫기/저장 버튼 겹침
+**결정**: 기존 media upload API 재활용하여 파일 선택 → 업로드 → URL 자동 설정
+**이유**:
+- 백엔드 변경 없이 프론트엔드만 수정으로 해결 가능
+- 기존 `/api/media/upload` 엔드포인트와 완전 호환
+- X/Twitter와 동일한 인라인 이미지 선택 UX
+**트레이드오프**: 프로필 이미지도 post_media 테이블에 저장되어 용도 구분 없음 (현재 문제 아님)
