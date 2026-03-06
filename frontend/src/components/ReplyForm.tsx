@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const MAX_LENGTH = 280;
+const MAX_LENGTH = 500;
 
 interface ReplyFormProps {
   postId: string;

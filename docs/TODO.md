@@ -76,7 +76,47 @@
 - [x] 코드 리뷰 (버그 1건 수정, 개선 2건 적용)
 - [ ] PR 생성 및 이슈 연결
 
+## Phase 10: 글쓰기 커스터마이징 (진행중)
+- [x] 스펙 문서 작성 (docs/specs/compose-customization-spec.md)
+- [x] Phase A: 마크다운 지원
+  - [x] DB 마이그레이션 (content VARCHAR→TEXT)
+  - [x] 글자 수 제한 280→500 (백엔드 + 프론트엔드)
+  - [x] react-markdown + remark-gfm + rehype-sanitize 설치
+  - [x] MarkdownRenderer 컴포넌트
+  - [x] ComposeForm 라이브 프리뷰
+  - [x] PostCard/PostDetailPage/ReplyCard/ParentPostCard 마크다운 렌더링
+  - [x] highlight.js 코드 하이라이팅
+- [x] Phase B: 미디어 업로드 백엔드
+  - [x] post_media 테이블 마이그레이션
+  - [x] MediaStorage 인터페이스 + LocalStorage 구현
+  - [x] MediaRepository, MediaService, MediaHandler
+  - [x] 정적 파일 서빙 설정
+- [x] Phase C: 미디어 업로드 프론트엔드
+  - [x] useMediaUpload 훅
+  - [x] MediaPreview, MediaGrid 컴포넌트
+  - [x] ComposeForm 미디어 통합
+  - [x] PostCard/PostDetailPage 미디어 표시
+- [x] Phase D: GPS 위치 태그
+  - [x] posts 테이블 위치 컬럼 마이그레이션
+  - [x] 백엔드 위치 필드 (model, dto, repository)
+  - [x] useGeolocation 훅 (Nominatim 역지오코딩)
+  - [x] ComposeForm 위치 태그 UI
+  - [x] PostCard/PostDetailPage 위치 표시
+- [x] Phase E: 투표 백엔드
+  - [x] polls/poll_options/poll_votes 테이블 마이그레이션
+  - [x] PollRepository, PollService, PollHandler
+  - [x] PostService에 투표 생성 통합
+- [x] Phase F: 투표 프론트엔드
+  - [x] usePoll 훅
+  - [x] PollCreator, PollDisplay 컴포넌트
+  - [x] ComposeForm 투표 통합
+  - [x] PostCard/PostDetailPage 투표 표시
+- [x] 테스트 작성 (Go service 테스트 통과)
+- [x] 코드 리뷰 (Critical 4건 수정, Warning 수정)
+- [ ] PR 생성
+
 ## 최근 변경 로그
+- 2026-03-06: 글쓰기 커스터마이징 - 마크다운/미디어/위치/투표 구현
 - 2026-03-06: 백엔드 인프라 개선 - Validator, Logging(slog), DI(fx) 도입
 - 2026-03-06: 이슈 #31 Profile 페이지 탭 콘텐츠 구현 (게시물/답글/좋아요)
 - 2026-03-06: 이슈 #19 주요 UI 레이아웃 및 스타일링 고도화 (3단 레이아웃, 반응형)

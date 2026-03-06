@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bookmark, Heart, MessageCircle, Repeat2, Share } from "lucide-react";
+import {
+  Bookmark,
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Share,
+  MapPin,
+} from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -11,6 +18,9 @@ import { formatRelativeTime } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import ShareModal from "@/components/ShareModal";
 import UserAvatar from "@/components/UserAvatar";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MediaGrid from "@/components/MediaGrid";
+import PollDisplay from "@/components/PollDisplay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -66,8 +76,8 @@ function PostCard({ post }: PostCardProps) {
         <div
           className="mt-0.5 shrink-0 cursor-pointer"
           onClick={(e) => {
-            e.stopPropagation()
-            navigate(`/${post.author.username}`)
+            e.stopPropagation();
+            navigate(`/${post.author.username}`);
           }}
         >
           <UserAvatar
@@ -154,10 +164,28 @@ function PostCard({ post }: PostCardProps) {
             </div>
           )}
 
+          {/* Location */}
+          {post.location && (
+            <div className="mt-0.5 flex items-center gap-1 text-[13px] text-muted-foreground">
+              <MapPin size={12} />
+              <span>{post.location.name}</span>
+            </div>
+          )}
+
           {/* Content */}
-          <p className="mt-0.5 text-[15px] leading-normal text-foreground">
-            {post.content}
-          </p>
+          {post.content && (
+            <div className="mt-0.5 text-[15px] leading-normal">
+              <MarkdownRenderer content={post.content} />
+            </div>
+          )}
+
+          {/* Media */}
+          {post.media && post.media.length > 0 && (
+            <MediaGrid media={post.media} />
+          )}
+
+          {/* Poll */}
+          {post.poll && <PollDisplay poll={post.poll} postId={post.id} />}
 
           {/* Action Buttons */}
           <div className="-ml-2 mt-1.5 flex max-w-[425px] items-center justify-between">

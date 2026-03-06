@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import type { PostDetail } from "@/types/api";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 interface ParentPostCardProps {
   post: PostDetail;
@@ -38,9 +39,9 @@ export default function ParentPostCard({ post }: ParentPostCardProps) {
               · {new Date(post.createdAt).toLocaleString()}
             </span>
           </div>
-          <p className="text-[15px] leading-normal text-foreground">
-            {post.content}
-          </p>
+          <div className="text-[15px] leading-normal">
+            <MarkdownRenderer content={post.content} />
+          </div>
         </div>
       </div>
     </div>

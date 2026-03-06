@@ -10,5 +10,7 @@ var Module = fx.Module("service",
 		NewFollowService,
 		NewBookmarkService,
 		NewUserService,
+		NewMediaService,
+		NewPollService,
 	),
 )

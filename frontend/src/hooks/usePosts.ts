@@ -26,10 +26,18 @@ async function fetchPostDetail(id: string): Promise<PostDetail> {
 }
 
 async function createPost(req: CreatePostRequest): Promise<PostDetail> {
+  const body: Record<string, unknown> = {
+    content: req.content,
+    visibility: req.visibility,
+  };
+  if (req.mediaIds && req.mediaIds.length > 0) body.mediaIds = req.mediaIds;
+  if (req.location) body.location = req.location;
+  if (req.poll) body.poll = req.poll;
+
   const res = await fetch("/api/posts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const json = await res.json();

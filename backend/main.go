@@ -10,6 +10,7 @@ import (
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/router"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/service"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/storage"
 	"github.com/kitae0522/twitter-clone-claude/backend/pkg/config"
 	"github.com/kitae0522/twitter-clone-claude/backend/pkg/database"
 	"github.com/kitae0522/twitter-clone-claude/backend/pkg/logger"
@@ -23,6 +24,7 @@ func main() {
 			provideLogger,
 			providePool,
 			provideFiberApp,
+			provideMediaStorage,
 		),
 		repository.Module,
 		service.Module,
@@ -63,6 +65,10 @@ func providePool(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger) (*pgxpoo
 
 func provideFiberApp() *fiber.App {
 	return fiber.New()
+}
+
+func provideMediaStorage() storage.MediaStorage {
+	return storage.NewLocalStorage("./uploads")
 }
 
 func startServer(lc fx.Lifecycle, app *fiber.App, log *slog.Logger) {

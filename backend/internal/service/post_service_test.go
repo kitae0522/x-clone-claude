@@ -123,9 +123,39 @@ func (m *mockPostRepo) FindLikedByUserHandleWithViewer(_ context.Context, _ stri
 	return nil, nil
 }
 
+type mockPollRepo struct{}
+
+func newMockPollRepo() *mockPollRepo {
+	return &mockPollRepo{}
+}
+
+func (m *mockPollRepo) CreatePoll(_ context.Context, _ *model.Poll, _ []model.PollOption) error {
+	return nil
+}
+
+func (m *mockPollRepo) FindByPostID(_ context.Context, _ uuid.UUID) (*model.Poll, []model.PollOption, error) {
+	return nil, nil, nil
+}
+
+func (m *mockPollRepo) Vote(_ context.Context, _, _ uuid.UUID, _ int16) error {
+	return nil
+}
+
+func (m *mockPollRepo) Unvote(_ context.Context, _, _ uuid.UUID, _ int16) error {
+	return nil
+}
+
+func (m *mockPollRepo) GetUserVote(_ context.Context, _, _ uuid.UUID) (*int16, error) {
+	return nil, nil
+}
+
+func (m *mockPollRepo) FindByPostIDs(_ context.Context, _ []uuid.UUID) (map[uuid.UUID]model.Poll, map[uuid.UUID][]model.PollOption, error) {
+	return nil, nil, nil
+}
+
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
 	resp, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content:    "Hello, world!",
@@ -145,7 +175,7 @@ func TestCreatePost_Success(t *testing.T) {
 
 func TestCreatePost_EmptyContent(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "",
@@ -165,15 +195,15 @@ func TestCreatePost_EmptyContent(t *testing.T) {
 
 func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
-	longContent := strings.Repeat("a", 281)
+	longContent := strings.Repeat("a", 501)
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: longContent,
 	})
 
 	if err == nil {
-		t.Fatal("expected error for content exceeding 280 characters")
+		t.Fatal("expected error for content exceeding 500 characters")
 	}
 	appErr, ok := err.(*apperror.AppError)
 	if !ok {
@@ -186,7 +216,7 @@ func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 
 func TestGetPostByID_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
 	created, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Test post",
@@ -204,7 +234,7 @@ func TestGetPostByID_Success(t *testing.T) {
 
 func TestGetPostByID_NotFound(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
 	_, err := svc.GetPostByID(context.Background(), uuid.New(), nil)
 	if err == nil {
@@ -241,8 +271,8 @@ func TestCreateReply(t *testing.T) {
 			wantCode:    400,
 		},
 		{
-			name:        "content exceeds 280 chars",
-			content:     strings.Repeat("a", 281),
+			name:        "content exceeds 500 chars",
+			content:     strings.Repeat("a", 501),
 			parentExist: true,
 			wantErr:     true,
 			wantCode:    400,
@@ -259,7 +289,7 @@ func TestCreateReply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo)
+			svc := NewPostService(repo, newMockPollRepo(), nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -333,7 +363,7 @@ func TestListReplies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo)
+			svc := NewPostService(repo, newMockPollRepo(), nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -378,7 +408,7 @@ func TestListReplies(t *testing.T) {
 
 func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo)
+	svc := NewPostService(repo, newMockPollRepo(), nil)
 
 	parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Parent post",

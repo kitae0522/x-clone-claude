@@ -5,8 +5,45 @@ import (
 )
 
 type CreatePostRequest struct {
-	Content    string `json:"content"    validate:"required,min=1,max=280"`
-	Visibility string `json:"visibility" validate:"omitempty,oneof=public friends private"`
+	Content    string           `json:"content"    validate:"omitempty,max=500"`
+	Visibility string           `json:"visibility" validate:"omitempty,oneof=public friends private"`
+	MediaIds   []string         `json:"mediaIds"   validate:"omitempty,max=4"`
+	Location   *LocationRequest `json:"location"`
+	Poll       *PollRequest     `json:"poll"`
+}
+
+type LocationRequest struct {
+	Latitude  float64 `json:"latitude"  validate:"required,min=-90,max=90"`
+	Longitude float64 `json:"longitude" validate:"required,min=-180,max=180"`
+	Name      string  `json:"name"      validate:"omitempty,max=100"`
+}
+
+type LocationResponse struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Name      string  `json:"name"`
+}
+
+type PollRequest struct {
+	Options         []string `json:"options"         validate:"required,min=2,max=4,dive,required,max=25"`
+	DurationMinutes int      `json:"durationMinutes" validate:"required,min=60,max=10080"`
+}
+
+type PollOptionResponse struct {
+	Text      string `json:"text"`
+	VoteCount int    `json:"voteCount"`
+}
+
+type PollResponse struct {
+	Options    []PollOptionResponse `json:"options"`
+	TotalVotes int                  `json:"totalVotes"`
+	VotedIndex int                  `json:"votedIndex"`
+	ExpiresAt  string               `json:"expiresAt"`
+	IsExpired  bool                 `json:"isExpired"`
+}
+
+type VoteRequest struct {
+	OptionIndex int `json:"optionIndex" validate:"min=0,max=3"`
 }
 
 type PostAuthor struct {
@@ -42,13 +79,16 @@ type PostDetailResponse struct {
 	ReplyCount   int                  `json:"replyCount"`
 	IsLiked      bool                 `json:"isLiked"`
 	IsBookmarked bool                 `json:"isBookmarked"`
+	Location     *LocationResponse    `json:"location,omitempty"`
+	Poll         *PollResponse        `json:"poll,omitempty"`
+	Media        []MediaResponse      `json:"media,omitempty"`
 	TopReplies   []PostDetailResponse `json:"topReplies"`
 	CreatedAt    string               `json:"createdAt"`
 	UpdatedAt    string               `json:"updatedAt"`
 }
 
 type CreateReplyRequest struct {
-	Content string `json:"content" validate:"required,min=1,max=280"`
+	Content string `json:"content" validate:"required,min=1,max=500"`
 }
 
 func ToPostResponse(p model.Post) PostResponse {
@@ -86,6 +126,17 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		IsBookmarked: p.IsBookmarked,
 		CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:    p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if p.LocationLat != nil && p.LocationLng != nil {
+		loc := &LocationResponse{
+			Latitude:  *p.LocationLat,
+			Longitude: *p.LocationLng,
+		}
+		if p.LocationName != nil {
+			loc.Name = *p.LocationName
+		}
+		resp.Location = loc
 	}
 
 	if p.ParentPostID != nil && p.ParentContent != nil && p.ParentAuthorUsername != nil {
