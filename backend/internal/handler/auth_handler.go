@@ -20,8 +20,8 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
-	if err := c.BodyParser(&req); err != nil {
-		return respondError(c, apperror.BadRequest("invalid request body"))
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	resp, err := h.authService.Register(c.Context(), req)
@@ -38,8 +38,8 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
-	if err := c.BodyParser(&req); err != nil {
-		return respondError(c, apperror.BadRequest("invalid request body"))
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	resp, err := h.authService.Login(c.Context(), req)

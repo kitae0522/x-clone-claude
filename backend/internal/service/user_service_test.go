@@ -15,7 +15,7 @@ func TestGetProfile_Success(t *testing.T) {
 	followRepo := newMockFollowRepo()
 	svc := NewUserService(repo, followRepo)
 
-	authSvc := NewAuthService(repo, "test-secret", 24)
+	authSvc := NewAuthService(repo, testConfig())
 	_, _ = authSvc.Register(context.Background(), dto.RegisterRequest{
 		Email: "profile@example.com", Username: "profileuser", Password: "password123",
 	})

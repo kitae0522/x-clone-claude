@@ -106,8 +106,8 @@ func (h *UserHandler) UpdateProfile(c *fiber.Ctx) error {
 	}
 
 	var req dto.UpdateProfileRequest
-	if err := c.BodyParser(&req); err != nil {
-		return respondError(c, apperror.BadRequest("invalid request body"))
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	user, err := h.userService.UpdateProfile(c.Context(), userID, req)

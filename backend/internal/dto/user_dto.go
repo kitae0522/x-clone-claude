@@ -3,11 +3,11 @@ package dto
 import "github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 
 type UpdateProfileRequest struct {
-	DisplayName     string `json:"displayName"`
-	Bio             string `json:"bio"`
-	Username        string `json:"username"`
-	ProfileImageURL string `json:"profileImageUrl"`
-	HeaderImageURL  string `json:"headerImageUrl"`
+	DisplayName     string `json:"displayName"     validate:"omitempty,max=50"`
+	Bio             string `json:"bio"             validate:"omitempty,max=160"`
+	Username        string `json:"username"        validate:"omitempty,min=3,max=30,alphanum"`
+	ProfileImageURL string `json:"profileImageUrl" validate:"omitempty,url"`
+	HeaderImageURL  string `json:"headerImageUrl"  validate:"omitempty,url"`
 }
 
 type ProfileResponse struct {
