@@ -26,6 +26,29 @@ func NewMediaRepository(pool *pgxpool.Pool) MediaRepository {
 }
 
 func (r *mediaRepository) Create(ctx context.Context, media *model.Media) error {
+	if media.ID != uuid.Nil {
+		// Insert with explicit ID (media-service assigned)
+		query := `
+			INSERT INTO post_media (id, post_id, uploader_id, url, media_type, mime_type, width, height, size_bytes, duration_seconds, sort_order)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			RETURNING created_at`
+
+		return r.pool.QueryRow(ctx, query,
+			media.ID,
+			media.PostID,
+			media.UploaderID,
+			media.URL,
+			string(media.MediaType),
+			media.MimeType,
+			media.Width,
+			media.Height,
+			media.SizeBytes,
+			media.DurationSeconds,
+			media.SortOrder,
+		).Scan(&media.CreatedAt)
+	}
+
+	// Auto-generate ID (legacy local upload)
 	query := `
 		INSERT INTO post_media (uploader_id, url, media_type, mime_type, width, height, size_bytes, duration_seconds, sort_order)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

@@ -20,6 +20,54 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/twitter_clone?sslmode=disable
       - JWT_SECRET=dev-jwt-secret-change-in-production
+      - MEDIA_SERVICE_URL=http://media-service:8081
+      - INTERNAL_API_KEY=dev-internal-api-key-change-in-production
+
+  media-service:
+    build: ./media-service
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./media-service:/app
+      - /app/tmp
+    depends_on:
+      - minio
+    environment:
+      - PORT=8081
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - INTERNAL_API_KEY=dev-internal-api-key-change-in-production
+      - S3_ENDPOINT=http://minio:9000
+      - S3_BUCKET=media
+      - S3_REGION=us-east-1
+      - S3_ACCESS_KEY_ID=minioadmin
+      - S3_SECRET_ACCESS_KEY=minioadmin
+      - S3_USE_SSL=false
+      - MAX_WORKERS=4
+      - TEMP_DIR=/tmp/media-service
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb local/media --ignore-existing;
+      exit 0;
+      "
 
   postgres:
     image: postgres:16-alpine
@@ -34,3 +82,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:

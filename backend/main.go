@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/handler"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/mediaclient"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/router"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/service"
@@ -25,6 +26,7 @@ func main() {
 			providePool,
 			provideFiberApp,
 			provideMediaStorage,
+			provideMediaClient,
 		),
 		repository.Module,
 		service.Module,
@@ -69,6 +71,10 @@ func provideFiberApp() *fiber.App {
 
 func provideMediaStorage() storage.MediaStorage {
 	return storage.NewLocalStorage("./uploads")
+}
+
+func provideMediaClient(cfg *config.Config) mediaclient.Client {
+	return mediaclient.New(cfg.MediaServiceURL, cfg.InternalAPIKey)
 }
 
 func startServer(lc fx.Lifecycle, app *fiber.App, log *slog.Logger) {

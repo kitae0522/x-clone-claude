@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { APIResponse, MediaItem } from "@/types/api";
 
 interface UploadProgress {
   id: string;
   progress: number;
-  status: "uploading" | "done" | "error";
+  status: "uploading" | "processing" | "done" | "error";
   media?: MediaItem;
   error?: string;
 }
@@ -13,7 +13,10 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 const MAX_GIF_SIZE = 15 * 1024 * 1024;
 
-const ALLOWED_TYPES: Record<string, { type: MediaItem["type"]; maxSize: number }> = {
+const ALLOWED_TYPES: Record<
+  string,
+  { type: MediaItem["type"]; maxSize: number }
+> = {
   "image/jpeg": { type: "image", maxSize: MAX_IMAGE_SIZE },
   "image/png": { type: "image", maxSize: MAX_IMAGE_SIZE },
   "image/webp": { type: "image", maxSize: MAX_IMAGE_SIZE },
@@ -22,11 +25,64 @@ const ALLOWED_TYPES: Record<string, { type: MediaItem["type"]; maxSize: number }
   "video/webm": { type: "video", maxSize: MAX_VIDEO_SIZE },
 };
 
+const POLL_INTERVAL = 1500;
+const MAX_POLL_ATTEMPTS = 120;
+
+async function pollForReady(mediaId: string): Promise<MediaItem> {
+  for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+    const res = await fetch(`/media/${mediaId}/status`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
+
+    const json: APIResponse<{
+      id: string;
+      status: string;
+      mediaType: string;
+      mimeType: string;
+      width: number;
+      height: number;
+      size: number;
+      url: string;
+      error: string;
+    }> = await res.json();
+
+    if (!json.success) throw new Error(json.error ?? "Status check failed");
+
+    const data = json.data;
+
+    if (data.status === "ready") {
+      return {
+        id: data.id,
+        url: `/media/${data.id}?size=medium`,
+        type: data.mediaType as MediaItem["type"],
+        mimeType: data.mimeType,
+        width: data.width || null,
+        height: data.height || null,
+        size: data.size,
+        duration: null,
+        status: "ready",
+      };
+    }
+
+    if (data.status === "failed") {
+      throw new Error(data.error || "Processing failed");
+    }
+
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+  }
+
+  throw new Error("Processing timed out");
+}
+
 export function useMediaUpload() {
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const abortRef = useRef(false);
 
-  const isUploading = uploads.some((u) => u.status === "uploading");
+  const isUploading = uploads.some(
+    (u) => u.status === "uploading" || u.status === "processing",
+  );
 
   const validateFile = useCallback((file: File): string | null => {
     const config = ALLOWED_TYPES[file.type];
@@ -40,63 +96,85 @@ export function useMediaUpload() {
     return null;
   }, []);
 
-  const uploadFile = useCallback(async (file: File): Promise<MediaItem | null> => {
-    const tempId = crypto.randomUUID();
+  const uploadFile = useCallback(
+    async (file: File): Promise<MediaItem | null> => {
+      const tempId = crypto.randomUUID();
 
-    setUploads((prev) => [...prev, { id: tempId, progress: 0, status: "uploading" }]);
+      setUploads((prev) => [
+        ...prev,
+        { id: tempId, progress: 0, status: "uploading" },
+      ]);
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    try {
-      const xhr = new XMLHttpRequest();
+      try {
+        // Step 1: Upload file to media-service
+        const uploadResult = await new Promise<{ id: string }>(
+          (resolve, reject) => {
+            const xhr = new XMLHttpRequest();
 
-      const result = await new Promise<MediaItem>((resolve, reject) => {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const progress = Math.round((e.loaded / e.total) * 100);
-            setUploads((prev) =>
-              prev.map((u) => (u.id === tempId ? { ...u, progress } : u)),
+            xhr.upload.addEventListener("progress", (e) => {
+              if (e.lengthComputable) {
+                const progress = Math.round((e.loaded / e.total) * 100);
+                setUploads((prev) =>
+                  prev.map((u) => (u.id === tempId ? { ...u, progress } : u)),
+                );
+              }
+            });
+
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                const json = JSON.parse(xhr.responseText);
+                if (json.success) {
+                  resolve(json.data);
+                } else {
+                  reject(new Error(json.error ?? "Upload failed"));
+                }
+              } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+              }
+            });
+
+            xhr.addEventListener("error", () =>
+              reject(new Error("Network error")),
             );
-          }
-        });
+            xhr.open("POST", "/media/upload");
+            xhr.withCredentials = true;
+            xhr.send(formData);
+          },
+        );
 
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const json: APIResponse<MediaItem> = JSON.parse(xhr.responseText);
-            if (json.success) {
-              resolve(json.data);
-            } else {
-              reject(new Error(json.error ?? "Upload failed"));
-            }
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status}`));
-          }
-        });
+        if (abortRef.current) return null;
 
-        xhr.addEventListener("error", () => reject(new Error("Network error")));
-        xhr.open("POST", "/api/media/upload");
-        xhr.withCredentials = true;
-        xhr.send(formData);
-      });
+        // Step 2: Poll for processing completion
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === tempId ? { ...u, progress: 100, status: "processing" } : u,
+          ),
+        );
 
-      setUploads((prev) =>
-        prev.map((u) =>
-          u.id === tempId ? { ...u, progress: 100, status: "done", media: result } : u,
-        ),
-      );
-      setMediaItems((prev) => [...prev, result]);
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Upload failed";
-      setUploads((prev) =>
-        prev.map((u) =>
-          u.id === tempId ? { ...u, status: "error", error: message } : u,
-        ),
-      );
-      return null;
-    }
-  }, []);
+        const mediaItem = await pollForReady(uploadResult.id);
+
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === tempId ? { ...u, status: "done", media: mediaItem } : u,
+          ),
+        );
+        setMediaItems((prev) => [...prev, mediaItem]);
+        return mediaItem;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.id === tempId ? { ...u, status: "error", error: message } : u,
+          ),
+        );
+        return null;
+      }
+    },
+    [],
+  );
 
   const addFiles = useCallback(
     async (files: File[]) => {
@@ -137,8 +215,12 @@ export function useMediaUpload() {
   }, []);
 
   const reset = useCallback(() => {
+    abortRef.current = true;
     setUploads([]);
     setMediaItems([]);
+    setTimeout(() => {
+      abortRef.current = false;
+    }, 0);
   }, []);
 
   return {

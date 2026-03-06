@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import UserAvatar from "@/components/UserAvatar";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MediaGrid from "@/components/MediaGrid";
+import PollDisplay from "@/components/PollDisplay";
 import MediaPreview from "@/components/MediaPreview";
 import PollCreator from "@/components/PollCreator";
 import VisibilitySelector from "@/components/VisibilitySelector";
@@ -254,6 +256,12 @@ export default function ComposePage() {
               <div className="mt-1 text-[15px] leading-normal">
                 <MarkdownRenderer content={parentPost.content} />
               </div>
+              {parentPost.media && parentPost.media.length > 0 && (
+                <MediaGrid media={parentPost.media} />
+              )}
+              {parentPost.poll && (
+                <PollDisplay poll={parentPost.poll} postId={parentPost.id} />
+              )}
               <div className="mt-2 text-[13px] text-muted-foreground">
                 <span className="text-primary">
                   @{parentPost.author.username}

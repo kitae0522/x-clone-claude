@@ -163,7 +163,7 @@ func (m *mockPollRepo) FindByPostIDs(_ context.Context, _ []uuid.UUID) (map[uuid
 
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	resp, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content:    "Hello, world!",
@@ -183,7 +183,7 @@ func TestCreatePost_Success(t *testing.T) {
 
 func TestCreatePost_EmptyContent(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "",
@@ -203,7 +203,7 @@ func TestCreatePost_EmptyContent(t *testing.T) {
 
 func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	longContent := strings.Repeat("a", 501)
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
@@ -224,7 +224,7 @@ func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 
 func TestGetPostByID_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	created, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Test post",
@@ -242,7 +242,7 @@ func TestGetPostByID_Success(t *testing.T) {
 
 func TestGetPostByID_NotFound(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	_, err := svc.GetPostByID(context.Background(), uuid.New(), nil)
 	if err == nil {
@@ -297,7 +297,7 @@ func TestCreateReply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -371,7 +371,7 @@ func TestListReplies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -416,7 +416,7 @@ func TestListReplies(t *testing.T) {
 
 func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 	parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Parent post",
@@ -460,7 +460,7 @@ func TestGetPostByID_IncrementsViewCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 			// Insert a post directly into the mock repo with a known view count
 			postID := uuid.New()
@@ -509,7 +509,7 @@ func TestGetPosts_DoesNotIncrementViewCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
 
 			// Insert a post directly into the mock repo
 			postID := uuid.New()
@@ -624,7 +624,7 @@ func TestGetPostByID_VisibilityAccess(t *testing.T) {
 				followRepo.follows[followKey(followerID, authorID)] = true
 			}
 
-			svc := NewPostService(postRepo, newMockPollRepo(), nil, followRepo)
+			svc := NewPostService(postRepo, newMockPollRepo(), nil, followRepo, nil)
 
 			// Create a post with the specified visibility directly in the mock repo
 			postID := uuid.New()

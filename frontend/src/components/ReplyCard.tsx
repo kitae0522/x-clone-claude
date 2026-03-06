@@ -6,6 +6,8 @@ import { useLike } from "@/hooks/useLike";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MediaGrid from "@/components/MediaGrid";
+import PollDisplay from "@/components/PollDisplay";
 import { formatCompactNumber } from "@/lib/formatTime";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +111,10 @@ export default function ReplyCard({
           <div className="mb-2 text-[14px] leading-normal">
             <MarkdownRenderer content={reply.content} />
           </div>
+          {reply.media && reply.media.length > 0 && (
+            <MediaGrid media={reply.media} />
+          )}
+          {reply.poll && <PollDisplay poll={reply.poll} postId={reply.id} />}
           <div className="flex items-center gap-3">
             <button
               onClick={handleLikeClick}
