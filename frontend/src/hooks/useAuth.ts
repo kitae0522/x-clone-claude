@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { APIResponse, LoginRequest, RegisterRequest, User } from '@/types/api'
+import { apiFetch } from '@/lib/api'
 
 async function fetchMe(): Promise<User> {
-  const res = await fetch('/api/auth/me')
+  const res = await apiFetch('/api/auth/me')
   if (!res.ok) {
     throw new Error('Not authenticated')
   }
@@ -14,7 +15,7 @@ async function fetchMe(): Promise<User> {
 }
 
 async function postRegister(data: RegisterRequest): Promise<User> {
-  const res = await fetch('/api/auth/register', {
+  const res = await apiFetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -27,7 +28,7 @@ async function postRegister(data: RegisterRequest): Promise<User> {
 }
 
 async function postLogin(data: LoginRequest): Promise<User> {
-  const res = await fetch('/api/auth/login', {
+  const res = await apiFetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -40,7 +41,7 @@ async function postLogin(data: LoginRequest): Promise<User> {
 }
 
 async function postLogout(): Promise<void> {
-  const res = await fetch('/api/auth/logout', { method: 'POST' })
+  const res = await apiFetch('/api/auth/logout', { method: 'POST' })
   if (!res.ok) {
     throw new Error('Logout failed')
   }

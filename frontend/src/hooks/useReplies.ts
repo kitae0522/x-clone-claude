@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { APIResponse, PostDetail, CreateReplyRequest } from "@/types/api";
+import { apiFetch } from "@/lib/api";
 
 async function fetchReplies(postId: string): Promise<PostDetail[]> {
-  const res = await fetch(`/api/posts/${postId}/replies`);
+  const res = await apiFetch(`/api/posts/${postId}/replies`);
   if (!res.ok) {
     throw new Error(`Failed to fetch replies: ${res.status}`);
   }
@@ -17,7 +18,7 @@ async function createReply(
   postId: string,
   req: CreateReplyRequest,
 ): Promise<PostDetail> {
-  const res = await fetch(`/api/posts/${postId}/reply`, {
+  const res = await apiFetch(`/api/posts/${postId}/reply`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),

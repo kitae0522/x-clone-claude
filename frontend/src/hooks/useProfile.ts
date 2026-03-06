@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { APIResponse, ProfileUser, UpdateProfileRequest, User } from '@/types/api'
+import { apiFetch } from '@/lib/api'
 
 async function fetchProfile(handle: string): Promise<ProfileUser> {
-  const res = await fetch(`/api/users/${handle}`)
+  const res = await apiFetch(`/api/users/${handle}`)
   const json: APIResponse<ProfileUser> = await res.json()
   if (!json.success) {
     throw new Error(json.error ?? 'Failed to fetch profile')
@@ -11,7 +12,7 @@ async function fetchProfile(handle: string): Promise<ProfileUser> {
 }
 
 async function putUpdateProfile(data: UpdateProfileRequest): Promise<User> {
-  const res = await fetch('/api/users/profile', {
+  const res = await apiFetch('/api/users/profile', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

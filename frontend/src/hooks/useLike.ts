@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { APIResponse, LikeStatusResponse, PostDetail } from "@/types/api";
+import { apiFetch } from "@/lib/api";
 
 async function postLike(postId: string): Promise<LikeStatusResponse> {
-  const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
+  const res = await apiFetch(`/api/posts/${postId}/like`, { method: "POST" });
   const json: APIResponse<LikeStatusResponse> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to like");
@@ -11,7 +12,7 @@ async function postLike(postId: string): Promise<LikeStatusResponse> {
 }
 
 async function deleteLike(postId: string): Promise<LikeStatusResponse> {
-  const res = await fetch(`/api/posts/${postId}/like`, { method: "DELETE" });
+  const res = await apiFetch(`/api/posts/${postId}/like`, { method: "DELETE" });
   const json: APIResponse<LikeStatusResponse> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to unlike");

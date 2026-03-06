@@ -5,11 +5,12 @@ import type {
   BookmarkListResponse,
   PostDetail,
 } from "@/types/api";
+import { apiFetch } from "@/lib/api";
 
 async function postBookmark(
   postId: string,
 ): Promise<BookmarkStatusResponse> {
-  const res = await fetch(`/api/posts/${postId}/bookmark`, { method: "POST" });
+  const res = await apiFetch(`/api/posts/${postId}/bookmark`, { method: "POST" });
   const json: APIResponse<BookmarkStatusResponse> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to bookmark");
@@ -20,7 +21,7 @@ async function postBookmark(
 async function deleteBookmark(
   postId: string,
 ): Promise<BookmarkStatusResponse> {
-  const res = await fetch(`/api/posts/${postId}/bookmark`, {
+  const res = await apiFetch(`/api/posts/${postId}/bookmark`, {
     method: "DELETE",
   });
   const json: APIResponse<BookmarkStatusResponse> = await res.json();
@@ -82,7 +83,7 @@ export function useBookmark(postId: string, isBookmarked: boolean) {
 }
 
 async function fetchBookmarks(): Promise<BookmarkListResponse> {
-  const res = await fetch("/api/users/bookmarks");
+  const res = await apiFetch("/api/users/bookmarks");
   const json: APIResponse<BookmarkListResponse> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to fetch bookmarks");
