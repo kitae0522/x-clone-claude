@@ -143,6 +143,7 @@ export interface PostDetail {
   author: PostAuthor;
   likeCount: number;
   replyCount: number;
+  viewCount: number;
   isLiked: boolean;
   isBookmarked: boolean;
   media?: MediaItem[] | null;

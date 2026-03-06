@@ -148,6 +148,14 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uui
 		return nil, err
 	}
 
+	if userID == nil || result.AuthorID != *userID {
+		if err := s.postRepo.IncrementViewCount(ctx, id); err != nil {
+			slog.Error("failed to increment view count", "postID", id, "error", err)
+		} else {
+			result.ViewCount++
+		}
+	}
+
 	resp := dto.ToPostDetailResponse(*result)
 	_ = s.enrichWithPollAndMedia(ctx, &resp, userID)
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bookmark,
+  Eye,
   Heart,
   MessageCircle,
   Repeat2,
@@ -15,7 +16,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
 import { useBookmark } from "@/hooks/useBookmark";
-import { formatRelativeTime } from "@/lib/formatTime";
+import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import ShareModal from "@/components/ShareModal";
 import UserAvatar from "@/components/UserAvatar";
@@ -242,6 +243,14 @@ function PostCard({ post }: PostCardProps) {
                 {post.likeCount || ""}
               </span>
             </button>
+
+            {/* View Count */}
+            <div className="group flex items-center gap-1.5 rounded-full p-2">
+              <Eye size={18} className="text-muted-foreground" />
+              <span className="text-[13px] text-muted-foreground">
+                {post.viewCount ? formatCompactNumber(post.viewCount) : ""}
+              </span>
+            </div>
 
             {/* Bookmark */}
             <button
