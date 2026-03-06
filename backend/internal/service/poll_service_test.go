@@ -102,6 +102,10 @@ func (m *mockPostRepoForPoll) IncrementViewCount(_ context.Context, _ uuid.UUID)
 	return nil
 }
 
+func (m *mockPostRepoForPoll) IncrementViewCountBatch(_ context.Context, _ []uuid.UUID) error {
+	return nil
+}
+
 // --- Tests ---
 
 func TestPollService_Vote(t *testing.T) {

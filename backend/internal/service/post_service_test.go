@@ -127,6 +127,10 @@ func (m *mockPostRepo) IncrementViewCount(_ context.Context, _ uuid.UUID) error 
 	return nil
 }
 
+func (m *mockPostRepo) IncrementViewCountBatch(_ context.Context, _ []uuid.UUID) error {
+	return nil
+}
+
 type mockPollRepo struct{}
 
 func newMockPollRepo() *mockPollRepo {

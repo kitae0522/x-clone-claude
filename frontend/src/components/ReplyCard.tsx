@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { PostDetail } from "@/types/api";
@@ -7,7 +6,6 @@ import { useLike } from "@/hooks/useLike";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import ReplyForm from "@/components/ReplyForm";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
 import { formatCompactNumber } from "@/lib/formatTime";
@@ -29,7 +27,6 @@ export default function ReplyCard({
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const like = useLike(reply.id, reply.isLiked, parentPostId);
-  const [showReplyForm, setShowReplyForm] = useState(false);
 
   const authorThread = reply.topReplies ?? [];
   const hasContinuation = authorThread.length > 0;
@@ -42,10 +39,10 @@ export default function ReplyCard({
     like.mutate();
   }
 
-  function handleReplyToggle(e: React.MouseEvent) {
+  function handleReplyClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (!currentUser) return;
-    setShowReplyForm((prev) => !prev);
+    navigate(`/compose?replyTo=${reply.id}`);
   }
 
   function handleCardClick() {
@@ -143,7 +140,7 @@ export default function ReplyCard({
               </span>
             </button>
             <button
-              onClick={handleReplyToggle}
+              onClick={handleReplyClick}
               className="group flex cursor-pointer items-center gap-1 border-none bg-transparent p-0"
             >
               <MessageCircle
@@ -163,10 +160,6 @@ export default function ReplyCard({
           </div>
         </div>
       </div>
-
-      {showReplyForm && (
-        <ReplyForm postId={reply.id} parentPostId={parentPostId} />
-      )}
 
       {authorThread.map((continuation, index) => (
         <ReplyCard
