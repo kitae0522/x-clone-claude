@@ -178,7 +178,19 @@
 - [x] 코드 리뷰 Critical 2건 수정
 - [ ] PR 생성
 
+## Phase 15: 액션 드롭다운 통합 (#53) (진행중)
+- [x] 스펙 문서 작성 (docs/specs/action-dropdown-unification-spec.md)
+- [x] PostCard: 팔로우 버튼 제거, 드롭다운 통합 (북마크/공유, 본인→수정/삭제)
+- [x] PostCard: 하단 액션 바 Bookmark/Share 독립 버튼 제거
+- [x] ReplyCard: 모든 로그인 사용자 드롭다운 (북마크/공유, 본인→수정/삭제)
+- [x] PostDetailPage: 팔로우 버튼 유지 + 드롭다운 추가 (북마크/공유)
+- [x] PostDetailPage: 하단 액션 바 Bookmark/Share 독립 버튼 제거
+- [x] bun run check 통과
+- [x] 코드 리뷰
+- [ ] PR 생성
+
 ## 최근 변경 로그
+- 2026-03-07: 이슈 #53 액션 드롭다운 통합 - 팔로우 버튼 정리, 북마크/공유 드롭다운 편입
 - 2026-03-07: 이슈 #51 프로필 수정 모달 개선 - 파일 업로드, 버튼 겹침 수정
 - 2026-03-06: Seed Data 마이그레이션 + schema.md 최신화
 - 2026-03-06: Post/Reply 수정 및 삭제 구현 - soft delete, 인라인 편집, 권한 검증

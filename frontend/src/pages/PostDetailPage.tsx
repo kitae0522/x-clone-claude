@@ -14,14 +14,11 @@ import {
 } from "lucide-react";
 import { usePostDetail, useParentChain, useDeletePost } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
-import { useProfile } from "@/hooks/useProfile";
-import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
 import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
-import { Button } from "@/components/ui/button";
 
 import ReplyCard from "@/components/ReplyCard";
 import ParentPostCard from "@/components/ParentPostCard";
@@ -34,6 +31,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -54,18 +52,11 @@ export default function PostDetailPage() {
   const postId = id ?? "";
   const { data: post, isLoading, error } = usePostDetail(postId);
   const { user: currentUser } = useAuth();
-  const [isHoveringFollow, setIsHoveringFollow] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const authorUsername = post?.author.username ?? "";
   const isOwner = currentUser?.username === authorUsername;
-  const { data: authorProfile } = useProfile(
-    authorUsername,
-    !!post && !isOwner,
-  );
-  const follow = useFollow(authorUsername);
-  const unfollow = useUnfollow(authorUsername);
   const like = useLike(postId, post?.isLiked ?? false);
   const bookmark = useBookmark(postId, post?.isBookmarked ?? false);
   const deletePost = useDeletePost(postId);
@@ -92,14 +83,6 @@ export default function PostDetailPage() {
         게시글을 찾을 수 없습니다.
       </p>
     );
-
-  function handleFollowClick() {
-    if (authorProfile?.isFollowing) {
-      unfollow.mutate();
-    } else {
-      follow.mutate();
-    }
-  }
 
   function handleLikeClick() {
     if (!currentUser) return;
@@ -163,7 +146,7 @@ export default function PostDetailPage() {
               @{post.author.username}
             </span>
           </div>
-          {isOwner && (
+          {currentUser && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="ml-auto rounded-full border-none bg-transparent p-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer">
@@ -171,45 +154,47 @@ export default function PostDetailPage() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {isOwner && (
+                  <>
+                    <DropdownMenuItem
+                      className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                      onClick={() => navigate(`/compose/edit/${postId}`)}
+                    >
+                      <Pencil size={14} className="mr-2" />
+                      수정
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      삭제
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
-                  onClick={() => navigate(`/compose/edit/${postId}`)}
+                  onClick={() => bookmark.mutate()}
                 >
-                  <Pencil size={14} className="mr-2" />
-                  수정
+                  <Bookmark
+                    size={14}
+                    className={cn("mr-2", post.isBookmarked && "fill-current")}
+                  />
+                  {post.isBookmarked ? "북마크 제거" : "북마크 추가"}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 data-[highlighted]:!bg-destructive data-[highlighted]:!text-white"
-                  onClick={() => setShowDeleteDialog(true)}
+                  className="hover:!bg-primary/10 hover:!text-primary data-[highlighted]:!bg-primary data-[highlighted]:!text-white"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setTimeout(() => setShowShareModal(true), 0);
+                  }}
                 >
-                  <Trash2 size={14} className="mr-2" />
-                  삭제
+                  <Share size={14} className="mr-2" />
+                  공유하기
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          {!isOwner && currentUser && authorProfile && (
-            <Button
-              onClick={handleFollowClick}
-              onMouseEnter={() => setIsHoveringFollow(true)}
-              onMouseLeave={() => setIsHoveringFollow(false)}
-              variant={
-                authorProfile.isFollowing
-                  ? isHoveringFollow
-                    ? "follow-danger"
-                    : "follow-active"
-                  : "follow"
-              }
-              size="sm"
-              className="min-w-[90px] cursor-pointer"
-              disabled={follow.isPending || unfollow.isPending}
-            >
-              {authorProfile.isFollowing
-                ? isHoveringFollow
-                  ? "언팔로우"
-                  : "팔로잉"
-                : "팔로우"}
-            </Button>
           )}
         </div>
 
@@ -312,33 +297,6 @@ export default function PostDetailPage() {
               )}
             />
           </button>
-          <button
-            onClick={() => {
-              if (!currentUser) return;
-              bookmark.mutate();
-            }}
-            disabled={bookmark.isPending}
-            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10 disabled:opacity-50"
-          >
-            <Bookmark
-              size={20}
-              className={cn(
-                "transition-colors group-hover:text-primary",
-                post.isBookmarked
-                  ? "fill-primary text-primary"
-                  : "text-muted-foreground",
-              )}
-            />
-          </button>
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
-          >
-            <Share
-              size={20}
-              className="text-muted-foreground transition-colors group-hover:text-primary"
-            />
-          </button>
         </div>
       </article>
 
@@ -357,8 +315,8 @@ export default function PostDetailPage() {
                 : "게시글을 삭제하시겠습니까?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              이 작업은 되돌릴 수 없습니다.{" "}
-              {post.parentId ? "답글" : "게시글"}이 영구적으로 삭제됩니다.
+              이 작업은 되돌릴 수 없습니다. {post.parentId ? "답글" : "게시글"}
+              이 영구적으로 삭제됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
