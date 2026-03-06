@@ -7,10 +7,12 @@ import (
 )
 
 type Config struct {
-	Env            string
-	DatabaseURL    string
-	JWTSecret      string
-	JWTExpiryHours int
+	Env             string
+	DatabaseURL     string
+	JWTSecret       string
+	JWTExpiryHours  int
+	MediaServiceURL string
+	InternalAPIKey  string
 }
 
 func Load() (*Config, error) {
@@ -32,10 +34,12 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Env:            env,
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/twitter_clone?sslmode=disable"),
-		JWTSecret:      jwtSecret,
-		JWTExpiryHours: expiryHours,
+		Env:             env,
+		DatabaseURL:     getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/twitter_clone?sslmode=disable"),
+		JWTSecret:       jwtSecret,
+		JWTExpiryHours:  expiryHours,
+		MediaServiceURL: getEnv("MEDIA_SERVICE_URL", "http://localhost:8081"),
+		InternalAPIKey:  getEnv("INTERNAL_API_KEY", "dev-internal-api-key-change-in-production"),
 	}, nil
 }
 

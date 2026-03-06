@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"sort"
 	"time"
 	"unicode/utf8"
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
+	"github.com/kitae0522/twitter-clone-claude/backend/internal/mediaclient"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
 )
@@ -28,18 +31,20 @@ type PostService interface {
 const maxAuthorThreadDepth = 10
 
 type postService struct {
-	postRepo   repository.PostRepository
-	pollRepo   repository.PollRepository
-	mediaRepo  repository.MediaRepository
-	followRepo repository.FollowRepository
+	postRepo    repository.PostRepository
+	pollRepo    repository.PollRepository
+	mediaRepo   repository.MediaRepository
+	followRepo  repository.FollowRepository
+	mediaClient mediaclient.Client
 }
 
-func NewPostService(postRepo repository.PostRepository, pollRepo repository.PollRepository, mediaRepo repository.MediaRepository, followRepo repository.FollowRepository) PostService {
+func NewPostService(postRepo repository.PostRepository, pollRepo repository.PollRepository, mediaRepo repository.MediaRepository, followRepo repository.FollowRepository, mc mediaclient.Client) PostService {
 	return &postService{
-		postRepo:   postRepo,
-		pollRepo:   pollRepo,
-		mediaRepo:  mediaRepo,
-		followRepo: followRepo,
+		postRepo:    postRepo,
+		pollRepo:    pollRepo,
+		mediaRepo:   mediaRepo,
+		followRepo:  followRepo,
+		mediaClient: mc,
 	}
 }
 
@@ -87,16 +92,8 @@ func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dt
 	}
 
 	if len(req.MediaIds) > 0 {
-		var mediaIDs []uuid.UUID
-		for _, idStr := range req.MediaIds {
-			id, err := uuid.Parse(idStr)
-			if err != nil {
-				return nil, apperror.BadRequest("invalid media ID: %s", idStr)
-			}
-			mediaIDs = append(mediaIDs, id)
-		}
-		if err := s.mediaRepo.LinkToPost(ctx, mediaIDs, post.ID); err != nil {
-			return nil, apperror.Internal("failed to link media to post")
+		if err := s.linkMediaFromService(ctx, req.MediaIds, post.ID, authorID); err != nil {
+			slog.Error("failed to link media", "error", err)
 		}
 	}
 
@@ -202,6 +199,7 @@ func (s *postService) fetchReplies(ctx context.Context, postID uuid.UUID, userID
 	for i, r := range replies {
 		responses[i] = dto.ToPostDetailResponse(r)
 	}
+	s.enrichSlice(ctx, responses, userID)
 	return responses, nil
 }
 
@@ -218,6 +216,7 @@ func (s *postService) buildAuthorThread(ctx context.Context, postID, replyAuthor
 	}
 	if selfReply != nil {
 		resp := dto.ToPostDetailResponse(*selfReply)
+		_ = s.enrichWithPollAndMedia(ctx, &resp, userID)
 		nested, err := s.buildAuthorThread(ctx, selfReply.ID, selfReply.AuthorID, postAuthorID, userID, depth+1)
 		if err != nil {
 			return nil, err
@@ -233,6 +232,7 @@ func (s *postService) buildAuthorThread(ctx context.Context, postID, replyAuthor
 		}
 		if opReply != nil {
 			resp := dto.ToPostDetailResponse(*opReply)
+			_ = s.enrichWithPollAndMedia(ctx, &resp, userID)
 			nested, err := s.buildAuthorThread(ctx, opReply.ID, opReply.AuthorID, postAuthorID, userID, depth+1)
 			if err != nil {
 				return nil, err
@@ -313,6 +313,32 @@ func (s *postService) CreateReply(ctx context.Context, parentID, authorID uuid.U
 
 	if err := s.postRepo.CreateReply(ctx, post); err != nil {
 		return nil, apperror.Internal("failed to create reply")
+	}
+
+	if len(req.MediaIds) > 0 {
+		if err := s.linkMediaFromService(ctx, req.MediaIds, post.ID, authorID); err != nil {
+			slog.Error("failed to link media to reply", "error", err)
+		}
+	}
+
+	if req.Poll != nil {
+		expiresAt := time.Now().Add(time.Duration(req.Poll.DurationMinutes) * time.Minute)
+		poll := &model.Poll{
+			PostID:    post.ID,
+			ExpiresAt: expiresAt,
+		}
+
+		var options []model.PollOption
+		for i, text := range req.Poll.Options {
+			options = append(options, model.PollOption{
+				OptionIndex: int16(i),
+				Text:        text,
+			})
+		}
+
+		if err := s.pollRepo.CreatePoll(ctx, poll, options); err != nil {
+			return nil, apperror.Internal("failed to create poll")
+		}
 	}
 
 	result, err := s.postRepo.FindByID(ctx, post.ID)
@@ -398,7 +424,7 @@ func (s *postService) enrichWithPollAndMedia(ctx context.Context, resp *dto.Post
 			for _, m := range mediaList {
 				mediaResponses = append(mediaResponses, dto.MediaResponse{
 					ID:       m.ID.String(),
-					URL:      m.URL,
+					URL:      "/media/" + m.ID.String() + "?size=medium",
 					Type:     string(m.MediaType),
 					MimeType: m.MimeType,
 					Width:    m.Width,
@@ -411,6 +437,57 @@ func (s *postService) enrichWithPollAndMedia(ctx context.Context, resp *dto.Post
 		}
 	}
 
+	return nil
+}
+
+func (s *postService) linkMediaFromService(ctx context.Context, mediaIdStrs []string, postID, uploaderID uuid.UUID) error {
+	for i, idStr := range mediaIdStrs {
+		mediaID, err := uuid.Parse(idStr)
+		if err != nil {
+			return fmt.Errorf("invalid media ID %s: %w", idStr, err)
+		}
+
+		// Check if already exists in DB (legacy local upload)
+		existing, _ := s.mediaRepo.FindByID(ctx, mediaID)
+		if existing != nil {
+			// Legacy record exists, just link it
+			if err := s.mediaRepo.LinkToPost(ctx, []uuid.UUID{mediaID}, postID); err != nil {
+				return fmt.Errorf("link existing media: %w", err)
+			}
+			continue
+		}
+
+		// Fetch metadata from media-service
+		status, err := s.mediaClient.GetStatus(ctx, idStr)
+		if err != nil {
+			return fmt.Errorf("get media status %s: %w", idStr, err)
+		}
+
+		var w, h *int
+		if status.Width > 0 {
+			w = &status.Width
+		}
+		if status.Height > 0 {
+			h = &status.Height
+		}
+
+		media := &model.Media{
+			ID:         mediaID,
+			PostID:     &postID,
+			UploaderID: uploaderID,
+			URL:        "/media/" + idStr,
+			MediaType:  model.MediaType(status.MediaType),
+			MimeType:   status.MimeType,
+			SizeBytes:  status.Size,
+			Width:      w,
+			Height:     h,
+			SortOrder:  int16(i),
+		}
+
+		if err := s.mediaRepo.Create(ctx, media); err != nil {
+			return fmt.Errorf("create media record %s: %w", idStr, err)
+		}
+	}
 	return nil
 }
 

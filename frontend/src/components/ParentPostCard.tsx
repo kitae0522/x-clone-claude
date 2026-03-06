@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import type { PostDetail } from "@/types/api";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MediaGrid from "@/components/MediaGrid";
+import PollDisplay from "@/components/PollDisplay";
 
 interface ParentPostCardProps {
   post: PostDetail;
@@ -42,6 +44,10 @@ export default function ParentPostCard({ post }: ParentPostCardProps) {
           <div className="text-[15px] leading-normal">
             <MarkdownRenderer content={post.content} />
           </div>
+          {post.media && post.media.length > 0 && (
+            <MediaGrid media={post.media} />
+          )}
+          {post.poll && <PollDisplay poll={post.poll} postId={post.id} />}
         </div>
       </div>
     </div>

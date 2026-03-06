@@ -2,6 +2,14 @@ import { useState } from "react";
 import type { MediaItem } from "@/types/api";
 import { cn } from "@/lib/utils";
 
+function mediaURL(item: MediaItem, size: "small" | "medium" | "large" | "original"): string {
+  if (item.url.startsWith("/media/")) {
+    const base = item.url.split("?")[0];
+    return `${base}?size=${size}`;
+  }
+  return item.url;
+}
+
 interface MediaGridProps {
   media: MediaItem[];
 }
@@ -45,14 +53,14 @@ export default function MediaGrid({ media }: MediaGridProps) {
           >
             {item.type === "video" ? (
               <video
-                src={item.url}
+                src={mediaURL(item, "medium")}
                 controls
                 className="h-full w-full object-cover"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
               <img
-                src={item.url}
+                src={mediaURL(item, "medium")}
                 alt=""
                 className="h-full w-full object-cover transition-opacity hover:opacity-90"
                 loading="lazy"
@@ -102,14 +110,14 @@ export default function MediaGrid({ media }: MediaGridProps) {
           <div className="max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
             {media[lightboxIndex].type === "video" ? (
               <video
-                src={media[lightboxIndex].url}
+                src={mediaURL(media[lightboxIndex], "large")}
                 controls
                 autoPlay
                 className="max-h-[90vh] max-w-[90vw]"
               />
             ) : (
               <img
-                src={media[lightboxIndex].url}
+                src={mediaURL(media[lightboxIndex], "large")}
                 alt=""
                 className="max-h-[90vh] max-w-[90vw] object-contain"
               />

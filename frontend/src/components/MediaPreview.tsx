@@ -4,7 +4,7 @@ import type { MediaItem } from "@/types/api";
 interface UploadItem {
   id: string;
   progress: number;
-  status: "uploading" | "done" | "error";
+  status: "uploading" | "processing" | "done" | "error";
   media?: MediaItem;
   error?: string;
 }
@@ -28,7 +28,7 @@ export default function MediaPreview({ uploads, mediaItems, onRemove }: MediaPre
             key={upload.id}
             className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-muted"
           >
-            {upload.status === "uploading" && (
+            {(upload.status === "uploading" || upload.status === "processing") && (
               <div className="flex h-full items-center justify-center">
                 <div className="relative h-10 w-10">
                   <svg className="-rotate-90" viewBox="0 0 36 36">
@@ -49,13 +49,13 @@ export default function MediaPreview({ uploads, mediaItems, onRemove }: MediaPre
                       stroke="currentColor"
                       strokeWidth="3"
                       strokeDasharray={88}
-                      strokeDashoffset={88 - (88 * upload.progress) / 100}
+                      strokeDashoffset={upload.status === "processing" ? 0 : 88 - (88 * upload.progress) / 100}
                       strokeLinecap="round"
                       className="text-primary transition-all duration-200"
                     />
                   </svg>
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-foreground">
-                    {upload.progress}%
+                    {upload.status === "processing" ? "변환중" : `${upload.progress}%`}
                   </span>
                 </div>
               </div>

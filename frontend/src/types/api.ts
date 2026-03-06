@@ -84,6 +84,7 @@ export interface MediaItem {
   height: number | null;
   size: number;
   duration: number | null;
+  status?: "pending" | "processing" | "ready" | "failed";
 }
 
 export interface LocationData {
