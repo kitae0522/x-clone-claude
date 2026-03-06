@@ -170,7 +170,16 @@
 - [x] 015_seed_data.down.sql (롤백)
 - [x] docker compose down -v && up 검증 완료
 
+## Phase 14: 프로필 수정 모달 개선 (#51) (완료)
+- [x] 스펙 문서 작성 (docs/specs/profile-modal-improvement-spec.md)
+- [x] 버튼 겹침 해결 (DialogHeader에 X 닫기 배치, 기본 닫기 버튼 숨김)
+- [x] 이미지 URL 입력 → 파일 업로드 UI 변경 (헤더/프로필 이미지)
+- [x] useUploadProfileImage 훅 분리 (useMutation + apiFetch)
+- [x] 코드 리뷰 Critical 2건 수정
+- [ ] PR 생성
+
 ## 최근 변경 로그
+- 2026-03-07: 이슈 #51 프로필 수정 모달 개선 - 파일 업로드, 버튼 겹침 수정
 - 2026-03-06: Seed Data 마이그레이션 + schema.md 최신화
 - 2026-03-06: Post/Reply 수정 및 삭제 구현 - soft delete, 인라인 편집, 권한 검증
 - 2026-03-06: 조회수(View Count) 시스템 구현 - 모든 post/reply에 조회수 표시, 큰 숫자 포맷팅

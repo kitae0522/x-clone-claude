@@ -32,6 +32,26 @@ export function useProfile(handle: string, enabled: boolean = true) {
   })
 }
 
+async function postUploadImage(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await apiFetch('/api/media/upload', {
+    method: 'POST',
+    body: formData,
+  })
+  const json: APIResponse<{ url: string }> = await res.json()
+  if (!json.success) {
+    throw new Error(json.error ?? '이미지 업로드에 실패했습니다.')
+  }
+  return json.data.url
+}
+
+export function useUploadProfileImage() {
+  return useMutation({
+    mutationFn: postUploadImage,
+  })
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
   return useMutation({
