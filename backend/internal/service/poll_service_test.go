@@ -98,6 +98,9 @@ func (m *mockPostRepoForPoll) FindLikedByUserHandle(_ context.Context, _ string,
 func (m *mockPostRepoForPoll) FindLikedByUserHandleWithViewer(_ context.Context, _ string, _, _ int, _ uuid.UUID) ([]model.PostWithAuthor, error) {
 	return nil, nil
 }
+func (m *mockPostRepoForPoll) IncrementViewCount(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
 
 // --- Tests ---
 

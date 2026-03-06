@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 	"time"
 	"unicode/utf8"
@@ -149,6 +150,14 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uui
 
 	if err := s.checkVisibilityAccess(ctx, result, userID); err != nil {
 		return nil, err
+	}
+
+	if userID == nil || result.AuthorID != *userID {
+		if err := s.postRepo.IncrementViewCount(ctx, id); err != nil {
+			slog.Error("failed to increment view count", "postID", id, "error", err)
+		} else {
+			result.ViewCount++
+		}
 	}
 
 	resp := dto.ToPostDetailResponse(*result)

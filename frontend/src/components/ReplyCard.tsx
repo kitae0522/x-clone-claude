@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle } from "lucide-react";
+import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
@@ -8,6 +8,7 @@ import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import ReplyForm from "@/components/ReplyForm";
+import { formatCompactNumber } from "@/lib/formatTime";
 import { cn } from "@/lib/utils";
 
 interface ReplyCardProps {
@@ -72,9 +73,7 @@ export default function ReplyCard({
               size="md"
             />
           </div>
-          {showLine && (
-            <div className="mt-1 w-0.5 flex-1 bg-border" />
-          )}
+          {showLine && <div className="mt-1 w-0.5 flex-1 bg-border" />}
         </div>
         <div className="flex-1">
           <div className="mb-1 flex items-center gap-1.5">
@@ -149,6 +148,12 @@ export default function ReplyCard({
                 {reply.replyCount}
               </span>
             </button>
+            <div className="flex items-center gap-1">
+              <Eye size={14} className="text-muted-foreground" />
+              <span className="text-[12px] text-muted-foreground">
+                {reply.viewCount ? formatCompactNumber(reply.viewCount) : ""}
+              </span>
+            </div>
           </div>
         </div>
       </div>

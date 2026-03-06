@@ -22,6 +22,7 @@ type Post struct {
 	Visibility   Visibility
 	LikeCount    int
 	ReplyCount   int
+	ViewCount    int
 	LocationLat  *float64
 	LocationLng  *float64
 	LocationName *string

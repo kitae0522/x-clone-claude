@@ -26,6 +26,7 @@ type PostRepository interface {
 	FindRepliesByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error)
 	FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error)
 	FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error)
+	IncrementViewCount(ctx context.Context, id uuid.UUID) error
 }
 
 type postRepository struct {
@@ -51,7 +52,7 @@ func (r *postRepository) Create(ctx context.Context, post *model.Post) error {
 func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -60,7 +61,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
@@ -73,7 +74,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -94,7 +95,7 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
 		); err != nil {
@@ -109,7 +110,7 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $2 AND b.post_id = p.id) AS is_bookmarked,
@@ -120,7 +121,7 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.IsLiked, &p.IsBookmarked,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
@@ -134,7 +135,7 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 
 func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
@@ -164,7 +165,7 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.IsLiked, &p.IsBookmarked,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
@@ -210,7 +211,7 @@ func (r *postRepository) CreateReply(ctx context.Context, post *model.Post) erro
 
 func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -230,7 +231,7 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
 		); err != nil {
@@ -245,7 +246,7 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -256,7 +257,7 @@ func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, au
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, postID, authorID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
@@ -270,7 +271,7 @@ func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, au
 func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, postID, authorID, userID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
@@ -283,7 +284,7 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, postID, authorID, userID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.IsLiked, &p.IsBookmarked,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
@@ -297,7 +298,7 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 
 func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID, userID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
@@ -319,7 +320,7 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.IsLiked, &p.IsBookmarked,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
@@ -347,7 +348,7 @@ func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model
 		var visibility string
 		var scanArgs []any
 		scanArgs = append(scanArgs,
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
@@ -365,7 +366,7 @@ func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model
 
 func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -384,7 +385,7 @@ func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, 
 
 func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
@@ -418,7 +419,7 @@ func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked boo
 		var visibility string
 		var scanArgs []any
 		scanArgs = append(scanArgs,
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
@@ -440,7 +441,7 @@ func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked boo
 
 func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name,
 		       pp.id, pp.content,
@@ -463,7 +464,7 @@ func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle s
 
 func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
@@ -495,7 +496,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 
 func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM likes lk
@@ -516,7 +517,7 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 
 func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
@@ -542,4 +543,12 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		return nil, err
 	}
 	return r.scanPostRows(rows, true)
+}
+
+func (r *postRepository) IncrementViewCount(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE posts SET view_count = view_count + 1 WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("failed to increment view count: %w", err)
+	}
+	return nil
 }

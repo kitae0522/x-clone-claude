@@ -123,6 +123,10 @@ func (m *mockPostRepo) FindLikedByUserHandleWithViewer(_ context.Context, _ stri
 	return nil, nil
 }
 
+func (m *mockPostRepo) IncrementViewCount(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 type mockPollRepo struct{}
 
 func newMockPollRepo() *mockPollRepo {
@@ -428,6 +432,107 @@ func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
 	}
 	if updated.ReplyCount != 2 {
 		t.Errorf("expected reply_count 2, got %d", updated.ReplyCount)
+	}
+}
+
+func TestGetPostByID_IncrementsViewCount(t *testing.T) {
+	tests := []struct {
+		name             string
+		initialViewCount int
+		wantViewCount    int
+	}{
+		{
+			name:             "view count increments from 0 to 1",
+			initialViewCount: 0,
+			wantViewCount:    1,
+		},
+		{
+			name:             "view count increments from 5 to 6",
+			initialViewCount: 5,
+			wantViewCount:    6,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+
+			// Insert a post directly into the mock repo with a known view count
+			postID := uuid.New()
+			authorID := uuid.New()
+			repo.posts[postID] = &model.PostWithAuthor{
+				Post: model.Post{
+					ID:         postID,
+					AuthorID:   authorID,
+					Content:    "test post",
+					Visibility: model.VisibilityPublic,
+					ViewCount:  tt.initialViewCount,
+				},
+				AuthorUsername:    "testuser",
+				AuthorDisplayName: "Test User",
+			}
+
+			_, err := svc.GetPostByID(context.Background(), postID, nil)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			// Verify the view count was incremented in the mock repo
+			got := repo.posts[postID].ViewCount
+			if got != tt.wantViewCount {
+				t.Errorf("expected view count %d, got %d", tt.wantViewCount, got)
+			}
+		})
+	}
+}
+
+func TestGetPosts_DoesNotIncrementViewCount(t *testing.T) {
+	tests := []struct {
+		name             string
+		initialViewCount int
+	}{
+		{
+			name:             "view count stays 0 after GetPosts",
+			initialViewCount: 0,
+		},
+		{
+			name:             "view count stays 10 after GetPosts",
+			initialViewCount: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
+
+			// Insert a post directly into the mock repo
+			postID := uuid.New()
+			authorID := uuid.New()
+			repo.posts[postID] = &model.PostWithAuthor{
+				Post: model.Post{
+					ID:         postID,
+					AuthorID:   authorID,
+					Content:    "test post",
+					Visibility: model.VisibilityPublic,
+					ViewCount:  tt.initialViewCount,
+				},
+				AuthorUsername:    "testuser",
+				AuthorDisplayName: "Test User",
+			}
+
+			_, err := svc.GetPosts(context.Background(), nil)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			// Verify the view count was NOT incremented
+			got := repo.posts[postID].ViewCount
+			if got != tt.initialViewCount {
+				t.Errorf("expected view count to remain %d, got %d", tt.initialViewCount, got)
+			}
+		})
 	}
 }
 

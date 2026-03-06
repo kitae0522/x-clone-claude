@@ -15,7 +15,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
 import { useBookmark } from "@/hooks/useBookmark";
-import { formatRelativeTime } from "@/lib/formatTime";
+import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -203,8 +203,16 @@ export default function PostDetailPage() {
         </div>
 
         {/* Stats */}
-        {(post.likeCount > 0 || post.replyCount > 0) && (
+        {(post.likeCount > 0 || post.replyCount > 0 || post.viewCount > 0) && (
           <div className="mt-3 flex gap-4 border-t border-border pt-3 text-sm">
+            {post.viewCount > 0 && (
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">
+                  {formatCompactNumber(post.viewCount)}
+                </strong>{" "}
+                조회
+              </span>
+            )}
             {post.replyCount > 0 && (
               <span className="text-muted-foreground">
                 <strong className="text-foreground">{post.replyCount}</strong>{" "}

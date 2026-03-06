@@ -21,3 +21,17 @@ export function formatRelativeTime(dateString: string): string {
 
   return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
+
+export function formatCompactNumber(num: number): string {
+  if (num < 1000) return num.toString();
+  if (num < 1_000_000) {
+    const k = num / 1000;
+    return k >= 100
+      ? `${Math.floor(k)}K`
+      : `${k.toFixed(1).replace(/\.0$/, "")}K`;
+  }
+  const m = num / 1_000_000;
+  return m >= 100
+    ? `${Math.floor(m)}M`
+    : `${m.toFixed(1).replace(/\.0$/, "")}M`;
+}
