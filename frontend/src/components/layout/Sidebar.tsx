@@ -54,7 +54,7 @@ export default function Sidebar() {
 
         {/* Post Button */}
         <Button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/compose")}
           className="mt-3 h-12 w-12 rounded-full text-[17px] font-bold xl:w-full"
         >
           <Feather className="h-5 w-5 xl:hidden" />

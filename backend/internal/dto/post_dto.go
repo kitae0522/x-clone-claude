@@ -6,7 +6,7 @@ import (
 
 type CreatePostRequest struct {
 	Content    string           `json:"content"    validate:"omitempty,max=500"`
-	Visibility string           `json:"visibility" validate:"omitempty,oneof=public friends private"`
+	Visibility string           `json:"visibility" validate:"omitempty,oneof=public follower private"`
 	MediaIds   []string         `json:"mediaIds"   validate:"omitempty,max=4"`
 	Location   *LocationRequest `json:"location"`
 	Poll       *PollRequest     `json:"poll"`

@@ -79,6 +79,7 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id IS NULL
+		  AND p.visibility = 'public'
 		ORDER BY p.created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -141,6 +142,14 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE p.parent_id IS NULL
+		  AND (
+		    p.visibility = 'public'
+		    OR (p.visibility = 'follower' AND (
+		      p.author_id = $3
+		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $3 AND f.following_id = p.author_id)
+		    ))
+		    OR (p.visibility = 'private' AND p.author_id = $3)
+		  )
 		ORDER BY p.created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -362,6 +371,7 @@ func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, 
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE u.username = $1 AND p.parent_id IS NULL
+		  AND p.visibility = 'public'
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -382,6 +392,14 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
 		WHERE u.username = $1 AND p.parent_id IS NULL
+		  AND (
+		    p.visibility = 'public'
+		    OR (p.visibility = 'follower' AND (
+		      p.author_id = $4
+		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
+		    ))
+		    OR (p.visibility = 'private' AND p.author_id = $4)
+		  )
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -432,6 +450,7 @@ func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle s
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
 		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		  AND p.visibility = 'public'
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -456,6 +475,14 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
 		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		  AND (
+		    p.visibility = 'public'
+		    OR (p.visibility = 'follower' AND (
+		      p.author_id = $4
+		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
+		    ))
+		    OR (p.visibility = 'private' AND p.author_id = $4)
+		  )
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -476,6 +503,7 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 		JOIN posts p ON p.id = lk.post_id
 		JOIN users u ON p.author_id = u.id
 		WHERE lk.user_id = target.id
+		  AND p.visibility = 'public'
 		ORDER BY lk.created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -498,6 +526,14 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		JOIN posts p ON p.id = lk.post_id
 		JOIN users u ON p.author_id = u.id
 		WHERE lk.user_id = target.id
+		  AND (
+		    p.visibility = 'public'
+		    OR (p.visibility = 'follower' AND (
+		      p.author_id = $4
+		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
+		    ))
+		    OR (p.visibility = 'private' AND p.author_id = $4)
+		  )
 		ORDER BY lk.created_at DESC
 		LIMIT $2 OFFSET $3`
 

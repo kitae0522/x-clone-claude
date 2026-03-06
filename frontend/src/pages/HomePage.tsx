@@ -1,6 +1,5 @@
 import { usePosts } from "@/hooks/usePosts";
 import PostCard from "@/components/PostCard";
-import ComposeForm from "@/components/ComposeForm";
 
 export default function HomePage() {
   const { data: posts, isLoading, error } = usePosts();
@@ -10,7 +9,6 @@ export default function HomePage() {
       <header className="sticky top-0 z-10 border-b border-border bg-background/65 backdrop-blur-xl">
         <h1 className="px-4 py-3 text-xl font-bold">홈</h1>
       </header>
-      <ComposeForm />
       <main>
         {isLoading && (
           <div className="flex justify-center py-8">
