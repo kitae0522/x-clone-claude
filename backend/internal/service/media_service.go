@@ -40,7 +40,7 @@ type MediaService interface {
 }
 
 type mediaService struct {
-	storage  storage.MediaStorage
+	storage   storage.MediaStorage
 	mediaRepo repository.MediaRepository
 }
 
