@@ -163,7 +163,15 @@
 - [x] 코드 리뷰
 - [ ] PR 생성
 
+## Phase 13: Seed Data & Schema 최신화 (완료)
+- [x] 스펙 문서 작성 (docs/specs/seed-data-spec.md)
+- [x] backend/docs/schema.md 최신화 (실제 DB 스키마 반영)
+- [x] 015_seed_data.up.sql (5명 사용자, 15 게시물, 11 팔로우, 13 좋아요, 3 북마크)
+- [x] 015_seed_data.down.sql (롤백)
+- [x] docker compose down -v && up 검증 완료
+
 ## 최근 변경 로그
+- 2026-03-06: Seed Data 마이그레이션 + schema.md 최신화
 - 2026-03-06: Post/Reply 수정 및 삭제 구현 - soft delete, 인라인 편집, 권한 검증
 - 2026-03-06: 조회수(View Count) 시스템 구현 - 모든 post/reply에 조회수 표시, 큰 숫자 포맷팅
 - 2026-03-06: 공개 범위 설정 + 글쓰기 페이지 분리 + 답글 컨텍스트 구현
