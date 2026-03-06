@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Repeat2, Share } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Repeat2, Share } from "lucide-react";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useUnfollow } from "@/hooks/useFollow";
 import { useLike } from "@/hooks/useLike";
+import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
+import ShareModal from "@/components/ShareModal";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,12 +22,14 @@ function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [isHoveringFollow, setIsHoveringFollow] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const isOwner = currentUser?.username === post.author.username;
   const { data: authorProfile } = useProfile(post.author.username, !isOwner);
   const follow = useFollow(post.author.username);
   const unfollow = useUnfollow(post.author.username);
   const like = useLike(post.id, post.isLiked);
+  const bookmark = useBookmark(post.id, post.isBookmarked);
 
   function handleFollowClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -40,6 +44,12 @@ function PostCard({ post }: PostCardProps) {
     e.stopPropagation();
     if (!currentUser) return;
     like.mutate();
+  }
+
+  function handleBookmarkClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!currentUser) return;
+    bookmark.mutate();
   }
 
   return (
@@ -203,9 +213,28 @@ function PostCard({ post }: PostCardProps) {
               </span>
             </button>
 
+            {/* Bookmark */}
+            <button
+              onClick={handleBookmarkClick}
+              className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
+            >
+              <Bookmark
+                size={18}
+                className={cn(
+                  "transition-colors group-hover:text-primary",
+                  post.isBookmarked
+                    ? "fill-primary text-primary"
+                    : "text-muted-foreground",
+                )}
+              />
+            </button>
+
             {/* Share */}
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowShareModal(true);
+              }}
               className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
             >
               <Share
@@ -214,6 +243,12 @@ function PostCard({ post }: PostCardProps) {
               />
             </button>
           </div>
+
+          <ShareModal
+            open={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            postId={post.id}
+          />
         </div>
       </div>
     </article>

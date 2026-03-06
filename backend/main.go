@@ -47,6 +47,10 @@ func main() {
 	followService := service.NewFollowService(followRepo, userRepo)
 	followHandler := handler.NewFollowHandler(followService)
 
+	bookmarkRepo := repository.NewBookmarkRepository(pool)
+	bookmarkService := service.NewBookmarkService(bookmarkRepo, postRepo)
+	bookmarkHandler := handler.NewBookmarkHandler(bookmarkService)
+
 	userService := service.NewUserService(userRepo, followRepo)
 	userHandler := handler.NewUserHandler(userService, postService)
 
@@ -59,6 +63,8 @@ func main() {
 	posts.Get("/:id/replies", middleware.OptionalAuth(cfg.JWTSecret), postHandler.ListReplies)
 	posts.Post("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Like)
 	posts.Delete("/:id/like", middleware.AuthRequired(cfg.JWTSecret), likeHandler.Unlike)
+	posts.Post("/:id/bookmark", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.Bookmark)
+	posts.Delete("/:id/bookmark", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.Unbookmark)
 
 	auth := api.Group("/auth")
 	auth.Post("/register", authHandler.Register)
@@ -67,6 +73,7 @@ func main() {
 	auth.Get("/me", middleware.AuthRequired(cfg.JWTSecret), authHandler.Me)
 
 	users := api.Group("/users")
+	users.Get("/bookmarks", middleware.AuthRequired(cfg.JWTSecret), bookmarkHandler.ListBookmarks)
 	users.Put("/profile", middleware.AuthRequired(cfg.JWTSecret), userHandler.UpdateProfile)
 	users.Post("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Follow)
 	users.Delete("/:handle/follow", middleware.AuthRequired(cfg.JWTSecret), followHandler.Unfollow)

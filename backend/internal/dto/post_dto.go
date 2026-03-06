@@ -31,19 +31,20 @@ type ParentPostSummary struct {
 }
 
 type PostDetailResponse struct {
-	ID         string               `json:"id"`
-	AuthorID   string               `json:"authorId"`
-	ParentID   *string              `json:"parentId"`
-	Parent     *ParentPostSummary   `json:"parent,omitempty"`
-	Content    string               `json:"content"`
-	Visibility string               `json:"visibility"`
-	Author     PostAuthor           `json:"author"`
-	LikeCount  int                  `json:"likeCount"`
-	ReplyCount int                  `json:"replyCount"`
-	IsLiked    bool                 `json:"isLiked"`
-	TopReplies []PostDetailResponse `json:"topReplies"`
-	CreatedAt  string               `json:"createdAt"`
-	UpdatedAt  string               `json:"updatedAt"`
+	ID           string               `json:"id"`
+	AuthorID     string               `json:"authorId"`
+	ParentID     *string              `json:"parentId"`
+	Parent       *ParentPostSummary   `json:"parent,omitempty"`
+	Content      string               `json:"content"`
+	Visibility   string               `json:"visibility"`
+	Author       PostAuthor           `json:"author"`
+	LikeCount    int                  `json:"likeCount"`
+	ReplyCount   int                  `json:"replyCount"`
+	IsLiked      bool                 `json:"isLiked"`
+	IsBookmarked bool                 `json:"isBookmarked"`
+	TopReplies   []PostDetailResponse `json:"topReplies"`
+	CreatedAt    string               `json:"createdAt"`
+	UpdatedAt    string               `json:"updatedAt"`
 }
 
 type CreateReplyRequest struct {
@@ -79,11 +80,12 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 			DisplayName:     p.AuthorDisplayName,
 			ProfileImageURL: p.AuthorProfileImageURL,
 		},
-		LikeCount:  p.LikeCount,
-		ReplyCount: p.ReplyCount,
-		IsLiked:    p.IsLiked,
-		CreatedAt:  p.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:  p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		LikeCount:    p.LikeCount,
+		ReplyCount:   p.ReplyCount,
+		IsLiked:      p.IsLiked,
+		IsBookmarked: p.IsBookmarked,
+		CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
 	if p.ParentPostID != nil && p.ParentContent != nil && p.ParentAuthorUsername != nil {

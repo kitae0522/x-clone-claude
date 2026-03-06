@@ -4,14 +4,14 @@
       "priority": "critical",
       "promptTriggers": {
         "keywords": ["handler", "service", "repository", "Go", "Fiber", "미들웨어", "라우터", "백엔드"],
-        "intentPatterns": ["(만들|구현|수정).*?(handler|service|repository|API)"]
+        "intentPatterns": ["(만들|구현|수정|추가).*?(handler|service|repository|API)"]
       }
     },
     "react-frontend-patterns": {
       "priority": "critical",
       "promptTriggers": {
-        "keywords": ["컴포넌트", "화면", "UI", "페이지", "hook", "React", "프론트"],
-        "intentPatterns": ["(만들|구현).*?(컴포넌트|페이지|화면)"]
+        "keywords": ["컴포넌트", "화면", "UI", "페이지", "hook", "React", "프론트엔드", "프론트"],
+        "intentPatterns": ["(만들|구현|추가).*?(컴포넌트|페이지|화면)"]
       }
     },
     "api-patterns": {
@@ -31,8 +31,22 @@
     "testing-patterns": {
       "priority": "high",
       "promptTriggers": {
-        "keywords": ["테스트", "test", "TDD", "mock", "커버리지"],
+        "keywords": ["테스트", "test", "TDD", "mock", "커버리지", "단위", "통합"],
         "intentPatterns": ["(작성|만들|추가).*?(테스트|test)"]
+      }
+    },
+    "git-convention": {
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": ["커밋", "commit", "브랜치", "branch", "PR", "merge", "git", "푸시", "pull request"],
+        "intentPatterns": ["(커밋|푸시|머지|생성).*?(브랜치|PR|pull request)"]
+      }
+    },
+    "database-patterns": {
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": ["데이터베이스", "DB", "SQL", "마이그레이션", "스키마", "쿼리", "테이블"],
+        "intentPatterns": ["(만들|수정|마이그레이션).*?(테이블|스키마|데이터베이스|쿼리)"]
       }
     }
   }

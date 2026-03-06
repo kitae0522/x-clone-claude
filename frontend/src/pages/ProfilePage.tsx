@@ -11,6 +11,7 @@ import {
   useUserReplies,
   useUserLikes,
 } from "@/hooks/useUserPosts";
+import { useBookmarks } from "@/hooks/useBookmark";
 import EditProfileModal from "@/components/EditProfileModal";
 import FollowListModal from "@/components/FollowListModal";
 import PostCard from "@/components/PostCard";
@@ -18,7 +19,7 @@ import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Tab = "posts" | "replies" | "likes";
+type Tab = "posts" | "replies" | "likes" | "bookmarks";
 
 export default function ProfilePage() {
   const { handle } = useParams<{ handle: string }>();
@@ -37,8 +38,8 @@ export default function ProfilePage() {
   const userPosts = useUserPosts(handle ?? "");
   const userReplies = useUserReplies(handle ?? "");
   const userLikes = useUserLikes(handle ?? "");
-
-  const isOwner = currentUser?.username === profile?.username;
+  const isOwner = currentUser?.username === handle;
+  const bookmarks = useBookmarks(isOwner);
 
   if (isLoading) {
     return (
@@ -84,6 +85,7 @@ export default function ProfilePage() {
     { key: "posts", label: "게시물" },
     { key: "replies", label: "답글" },
     { key: "likes", label: "마음에 들어요" },
+    ...(isOwner ? [{ key: "bookmarks" as const, label: "북마크" }] : []),
   ];
 
   return (
@@ -227,6 +229,8 @@ export default function ProfilePage() {
         userPosts={userPosts}
         userReplies={userReplies}
         userLikes={userLikes}
+        bookmarkPosts={bookmarks.data?.posts}
+        bookmarksLoading={bookmarks.isLoading}
       />
 
       {showEditModal && currentUser && (
@@ -252,24 +256,38 @@ function TabContent({
   userPosts,
   userReplies,
   userLikes,
+  bookmarkPosts,
+  bookmarksLoading,
 }: {
   tab: Tab;
   userPosts: UseQueryResult<PostDetail[]>;
   userReplies: UseQueryResult<PostDetail[]>;
   userLikes: UseQueryResult<PostDetail[]>;
+  bookmarkPosts?: PostDetail[];
+  bookmarksLoading: boolean;
 }) {
-  const queryMap = {
-    posts: userPosts,
-    replies: userReplies,
-    likes: userLikes,
-  };
-  const emptyMessages = {
+  const emptyMessages: Record<Tab, string> = {
     posts: "아직 게시물이 없습니다.",
     replies: "아직 답글이 없습니다.",
     likes: "아직 좋아요한 게시물이 없습니다.",
+    bookmarks: "아직 북마크한 게시물이 없습니다.",
   };
 
-  const { data, isLoading } = queryMap[tab];
+  let data: PostDetail[] | undefined;
+  let isLoading: boolean;
+
+  if (tab === "bookmarks") {
+    data = bookmarkPosts;
+    isLoading = bookmarksLoading;
+  } else {
+    const queryMap = {
+      posts: userPosts,
+      replies: userReplies,
+      likes: userLikes,
+    };
+    data = queryMap[tab].data;
+    isLoading = queryMap[tab].isLoading;
+  }
 
   if (isLoading) {
     return (

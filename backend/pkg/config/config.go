@@ -6,8 +6,8 @@ import (
 )
 
 type Config struct {
-	DatabaseURL  string
-	JWTSecret    string
+	DatabaseURL    string
+	JWTSecret      string
 	JWTExpiryHours int
 }
 

@@ -5,7 +5,7 @@ description: |
   Triggers on: test, TDD, mock, unit, integration keywords.
 ---
 
-# Testing Patterns — X Clone
+# Testing Patterns -- X Clone
 
 ## Go Backend Tests
 - Use table-driven test pattern
@@ -24,3 +24,4 @@ description: |
 - Backend service layer: 80%+
 - Frontend custom hooks: 70%+
 - Handlers/components: critical paths only
+- **Overall goal: maintain 80%+ coverage on core business logic**

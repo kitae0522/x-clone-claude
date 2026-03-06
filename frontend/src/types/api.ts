@@ -103,6 +103,7 @@ export interface PostDetail {
   likeCount: number
   replyCount: number
   isLiked: boolean
+  isBookmarked: boolean
   topReplies: PostDetail[] | null
   createdAt: string
   updatedAt: string
@@ -114,4 +115,14 @@ export interface CreateReplyRequest {
 
 export interface LikeStatusResponse {
   liked: boolean
+}
+
+export interface BookmarkStatusResponse {
+  bookmarked: boolean
+}
+
+export interface BookmarkListResponse {
+  posts: PostDetail[]
+  nextCursor: string
+  hasMore: boolean
 }

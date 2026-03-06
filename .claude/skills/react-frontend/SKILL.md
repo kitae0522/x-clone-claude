@@ -5,7 +5,7 @@ description: |
   Triggers on: component, screen, UI, page, hook, React, frontend keywords.
 ---
 
-# React Frontend Patterns — X Clone
+# React Frontend Patterns -- X Clone
 
 ## Tech Stack
 - React 19 + TypeScript + Vite
@@ -22,10 +22,10 @@ description: |
   - e.g., `['posts', 'feed', { cursor }]`
 
 ## Directory Rules
-- `src/components/` — Reusable UI components
-- `src/features/` — Domain-specific feature modules
-- `src/hooks/` — Custom hooks (including API calls)
-- `src/lib/` — Utilities, types, constants
+- `src/components/` -- Reusable UI components
+- `src/features/` -- Domain-specific feature modules
+- `src/hooks/` -- Custom hooks (including API calls)
+- `src/lib/` -- Utilities, types, constants
 
 ## shadcn/ui Usage Rules
 - Check for existing shadcn components before custom styling

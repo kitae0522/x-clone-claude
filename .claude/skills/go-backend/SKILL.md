@@ -5,16 +5,16 @@ description: |
   Triggers on: handler, service, repository, Go, Fiber, middleware, router keywords.
 ---
 
-# Go Backend Patterns — X Clone
+# Go Backend Patterns -- X Clone
 
 ## Layered Architecture Rules
-- Follow handler → service → repository order strictly
+- Follow handler -> service -> repository order strictly
 - Use Go interfaces for all inter-layer communication
 - Never use interface pointers (`*MyInterface` is forbidden)
 
 ## Function Signature Rules
 - First parameter: `ctx context.Context` (always)
-- Parameter order: ctx → clients/interfaces → heavy types (slices/maps) → light types (strings, bools)
+- Parameter order: ctx -> clients/interfaces -> heavy types (slices/maps) -> light types (strings, bools)
 
 ## Error Handling
 - Never use `panic`
