@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { APIResponse, PollData } from "@/types/api";
+import { apiFetch } from "@/lib/api";
 
 interface VoteRequest {
   postId: string;
@@ -7,10 +8,9 @@ interface VoteRequest {
 }
 
 async function vote({ postId, optionIndex }: VoteRequest): Promise<PollData> {
-  const res = await fetch(`/api/posts/${postId}/vote`, {
+  const res = await apiFetch(`/api/posts/${postId}/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ optionIndex }),
   });
   if (!res.ok) {
@@ -37,9 +37,8 @@ export function useVote(postId: string) {
 }
 
 async function unvote(postId: string): Promise<PollData> {
-  const res = await fetch(`/api/posts/${postId}/vote`, {
+  const res = await apiFetch(`/api/posts/${postId}/vote`, {
     method: "DELETE",
-    credentials: "include",
   });
   if (!res.ok) {
     const json = await res.json();

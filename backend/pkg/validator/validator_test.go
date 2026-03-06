@@ -13,7 +13,7 @@ type registerRequest struct {
 
 type createPostRequest struct {
 	Content    string `json:"content"    validate:"required,min=1,max=280"`
-	Visibility string `json:"visibility" validate:"omitempty,oneof=public friends private"`
+	Visibility string `json:"visibility" validate:"omitempty,oneof=public follower private"`
 }
 
 type updateProfileRequest struct {
@@ -162,7 +162,7 @@ func TestValidate_CreatePostRequest(t *testing.T) {
 			},
 			wantErr:     true,
 			wantField:   "visibility",
-			wantMessage: "must be one of: public friends private",
+			wantMessage: "must be one of: public follower private",
 		},
 	}
 

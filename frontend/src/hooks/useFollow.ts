@@ -4,9 +4,10 @@ import type {
   FollowListResponse,
   FollowStatusResponse,
 } from '@/types/api'
+import { apiFetch } from '@/lib/api'
 
 async function postFollow(handle: string): Promise<FollowStatusResponse> {
-  const res = await fetch(`/api/users/${handle}/follow`, { method: 'POST' })
+  const res = await apiFetch(`/api/users/${handle}/follow`, { method: 'POST' })
   const json: APIResponse<FollowStatusResponse> = await res.json()
   if (!json.success) {
     throw new Error(json.error ?? 'Failed to follow')
@@ -15,7 +16,7 @@ async function postFollow(handle: string): Promise<FollowStatusResponse> {
 }
 
 async function deleteFollow(handle: string): Promise<FollowStatusResponse> {
-  const res = await fetch(`/api/users/${handle}/follow`, { method: 'DELETE' })
+  const res = await apiFetch(`/api/users/${handle}/follow`, { method: 'DELETE' })
   const json: APIResponse<FollowStatusResponse> = await res.json()
   if (!json.success) {
     throw new Error(json.error ?? 'Failed to unfollow')
@@ -24,7 +25,7 @@ async function deleteFollow(handle: string): Promise<FollowStatusResponse> {
 }
 
 async function fetchFollowing(handle: string): Promise<FollowListResponse> {
-  const res = await fetch(`/api/users/${handle}/following`)
+  const res = await apiFetch(`/api/users/${handle}/following`)
   const json: APIResponse<FollowListResponse> = await res.json()
   if (!json.success) {
     throw new Error(json.error ?? 'Failed to fetch following')
@@ -33,7 +34,7 @@ async function fetchFollowing(handle: string): Promise<FollowListResponse> {
 }
 
 async function fetchFollowers(handle: string): Promise<FollowListResponse> {
-  const res = await fetch(`/api/users/${handle}/followers`)
+  const res = await apiFetch(`/api/users/${handle}/followers`)
   const json: APIResponse<FollowListResponse> = await res.json()
   if (!json.success) {
     throw new Error(json.error ?? 'Failed to fetch followers')

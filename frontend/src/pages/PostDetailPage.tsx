@@ -19,13 +19,14 @@ import { formatRelativeTime } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
-import ReplyForm from "@/components/ReplyForm";
+
 import ReplyCard from "@/components/ReplyCard";
 import ParentPostCard from "@/components/ParentPostCard";
 import ShareModal from "@/components/ShareModal";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
+import VisibilityBadge from "@/components/VisibilityBadge";
 import { cn } from "@/lib/utils";
 
 export default function PostDetailPage() {
@@ -193,9 +194,12 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        <div className="text-[15px] text-muted-foreground">
-          {formatRelativeTime(post.createdAt)} ·{" "}
-          {new Date(post.createdAt).toLocaleString("ko-KR")}
+        <div className="flex items-center gap-1 text-[15px] text-muted-foreground">
+          <span>
+            {formatRelativeTime(post.createdAt)} ·{" "}
+            {new Date(post.createdAt).toLocaleString("ko-KR")}
+          </span>
+          <VisibilityBadge visibility={post.visibility} />
         </div>
 
         {/* Stats */}
@@ -219,7 +223,7 @@ export default function PostDetailPage() {
         {/* Action Buttons */}
         <div className="flex items-center justify-around border-t border-border pt-1 mt-3">
           <button
-            onClick={() => {}}
+            onClick={() => navigate(`/compose?replyTo=${postId}`)}
             className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
           >
             <MessageCircle
@@ -283,8 +287,6 @@ export default function PostDetailPage() {
         onClose={() => setShowShareModal(false)}
         postId={postId}
       />
-
-      <ReplyForm postId={postId} />
 
       <section>
         {post.topReplies?.map((reply) => (

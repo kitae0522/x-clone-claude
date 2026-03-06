@@ -155,7 +155,7 @@ func (m *mockPollRepo) FindByPostIDs(_ context.Context, _ []uuid.UUID) (map[uuid
 
 func TestCreatePost_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	resp, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content:    "Hello, world!",
@@ -175,7 +175,7 @@ func TestCreatePost_Success(t *testing.T) {
 
 func TestCreatePost_EmptyContent(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "",
@@ -195,7 +195,7 @@ func TestCreatePost_EmptyContent(t *testing.T) {
 
 func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	longContent := strings.Repeat("a", 501)
 	_, err := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
@@ -216,7 +216,7 @@ func TestCreatePost_ExceedsMaxLength(t *testing.T) {
 
 func TestGetPostByID_Success(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	created, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Test post",
@@ -234,7 +234,7 @@ func TestGetPostByID_Success(t *testing.T) {
 
 func TestGetPostByID_NotFound(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	_, err := svc.GetPostByID(context.Background(), uuid.New(), nil)
 	if err == nil {
@@ -289,7 +289,7 @@ func TestCreateReply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -363,7 +363,7 @@ func TestListReplies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockPostRepo()
-			svc := NewPostService(repo, newMockPollRepo(), nil)
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 			var parentID uuid.UUID
 			if tt.parentExist {
@@ -408,7 +408,7 @@ func TestListReplies(t *testing.T) {
 
 func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
 	repo := newMockPostRepo()
-	svc := NewPostService(repo, newMockPollRepo(), nil)
+	svc := NewPostService(repo, newMockPollRepo(), nil, nil)
 
 	parent, _ := svc.CreatePost(context.Background(), uuid.New(), dto.CreatePostRequest{
 		Content: "Parent post",
@@ -428,5 +428,129 @@ func TestCreateReply_IncrementsParentReplyCount(t *testing.T) {
 	}
 	if updated.ReplyCount != 2 {
 		t.Errorf("expected reply_count 2, got %d", updated.ReplyCount)
+	}
+}
+
+func TestGetPostByID_VisibilityAccess(t *testing.T) {
+	authorID := uuid.New()
+	followerID := uuid.New()
+	nonFollowerID := uuid.New()
+
+	tests := []struct {
+		name       string
+		visibility model.Visibility
+		viewerID   *uuid.UUID
+		isFollower bool
+		wantErr    bool
+		wantCode   int
+	}{
+		{
+			name:       "public post - unauthenticated viewer",
+			visibility: model.VisibilityPublic,
+			viewerID:   nil,
+			wantErr:    false,
+		},
+		{
+			name:       "public post - authenticated viewer",
+			visibility: model.VisibilityPublic,
+			viewerID:   &nonFollowerID,
+			wantErr:    false,
+		},
+		{
+			name:       "follower post - unauthenticated viewer",
+			visibility: model.VisibilityFollower,
+			viewerID:   nil,
+			wantErr:    true,
+			wantCode:   404,
+		},
+		{
+			name:       "follower post - follower viewer",
+			visibility: model.VisibilityFollower,
+			viewerID:   &followerID,
+			isFollower: true,
+			wantErr:    false,
+		},
+		{
+			name:       "follower post - non-follower viewer",
+			visibility: model.VisibilityFollower,
+			viewerID:   &nonFollowerID,
+			isFollower: false,
+			wantErr:    true,
+			wantCode:   404,
+		},
+		{
+			name:       "follower post - author self-view",
+			visibility: model.VisibilityFollower,
+			viewerID:   &authorID,
+			wantErr:    false,
+		},
+		{
+			name:       "private post - unauthenticated viewer",
+			visibility: model.VisibilityPrivate,
+			viewerID:   nil,
+			wantErr:    true,
+			wantCode:   404,
+		},
+		{
+			name:       "private post - other user viewer",
+			visibility: model.VisibilityPrivate,
+			viewerID:   &followerID,
+			wantErr:    true,
+			wantCode:   404,
+		},
+		{
+			name:       "private post - author self-view",
+			visibility: model.VisibilityPrivate,
+			viewerID:   &authorID,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			postRepo := newMockPostRepo()
+			followRepo := newMockFollowRepo()
+
+			if tt.isFollower {
+				followRepo.follows[followKey(followerID, authorID)] = true
+			}
+
+			svc := NewPostService(postRepo, newMockPollRepo(), nil, followRepo)
+
+			// Create a post with the specified visibility directly in the mock repo
+			postID := uuid.New()
+			postRepo.posts[postID] = &model.PostWithAuthor{
+				Post: model.Post{
+					ID:         postID,
+					AuthorID:   authorID,
+					Content:    "test post",
+					Visibility: tt.visibility,
+				},
+				AuthorUsername:    "testauthor",
+				AuthorDisplayName: "Test Author",
+			}
+
+			resp, err := svc.GetPostByID(context.Background(), postID, tt.viewerID)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				appErr, ok := err.(*apperror.AppError)
+				if !ok {
+					t.Fatalf("expected AppError, got %T", err)
+				}
+				if appErr.Code != tt.wantCode {
+					t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if resp.Content != "test post" {
+					t.Errorf("expected content 'test post', got %s", resp.Content)
+				}
+			}
+		})
 	}
 }

@@ -8,6 +8,7 @@ import {
   Share,
   MapPin,
 } from "lucide-react";
+import VisibilityBadge from "@/components/VisibilityBadge";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -117,6 +118,7 @@ function PostCard({ post }: PostCardProps) {
               <span className="shrink-0 text-[15px] text-muted-foreground">
                 {formatRelativeTime(post.createdAt)}
               </span>
+              <VisibilityBadge visibility={post.visibility} />
             </div>
             {!isOwner && currentUser && authorProfile && (
               <Button
@@ -193,7 +195,7 @@ function PostCard({ post }: PostCardProps) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/post/${post.id}`);
+                navigate(`/compose?replyTo=${post.id}`);
               }}
               className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-primary/10"
             >

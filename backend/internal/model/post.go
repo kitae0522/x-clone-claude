@@ -9,9 +9,9 @@ import (
 type Visibility string
 
 const (
-	VisibilityPublic  Visibility = "public"
-	VisibilityFriends Visibility = "friends"
-	VisibilityPrivate Visibility = "private"
+	VisibilityPublic   Visibility = "public"
+	VisibilityFollower Visibility = "follower"
+	VisibilityPrivate  Visibility = "private"
 )
 
 type Post struct {

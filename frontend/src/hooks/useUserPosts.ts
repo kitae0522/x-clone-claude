@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type { APIResponse, PostDetail } from "@/types/api";
+import { apiFetch } from "@/lib/api";
 
 async function fetchUserPosts(handle: string): Promise<PostDetail[]> {
-  const res = await fetch(`/api/users/${handle}/posts`);
+  const res = await apiFetch(`/api/users/${handle}/posts`);
   const json: APIResponse<PostDetail[]> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to fetch user posts");
@@ -11,7 +12,7 @@ async function fetchUserPosts(handle: string): Promise<PostDetail[]> {
 }
 
 async function fetchUserReplies(handle: string): Promise<PostDetail[]> {
-  const res = await fetch(`/api/users/${handle}/replies`);
+  const res = await apiFetch(`/api/users/${handle}/replies`);
   const json: APIResponse<PostDetail[]> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to fetch user replies");
@@ -20,7 +21,7 @@ async function fetchUserReplies(handle: string): Promise<PostDetail[]> {
 }
 
 async function fetchUserLikes(handle: string): Promise<PostDetail[]> {
-  const res = await fetch(`/api/users/${handle}/likes`);
+  const res = await apiFetch(`/api/users/${handle}/likes`);
   const json: APIResponse<PostDetail[]> = await res.json();
   if (!json.success) {
     throw new Error(json.error ?? "Failed to fetch user likes");

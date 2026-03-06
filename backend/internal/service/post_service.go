@@ -28,16 +28,18 @@ type PostService interface {
 const maxAuthorThreadDepth = 10
 
 type postService struct {
-	postRepo  repository.PostRepository
-	pollRepo  repository.PollRepository
-	mediaRepo repository.MediaRepository
+	postRepo   repository.PostRepository
+	pollRepo   repository.PollRepository
+	mediaRepo  repository.MediaRepository
+	followRepo repository.FollowRepository
 }
 
-func NewPostService(postRepo repository.PostRepository, pollRepo repository.PollRepository, mediaRepo repository.MediaRepository) PostService {
+func NewPostService(postRepo repository.PostRepository, pollRepo repository.PollRepository, mediaRepo repository.MediaRepository, followRepo repository.FollowRepository) PostService {
 	return &postService{
-		postRepo:  postRepo,
-		pollRepo:  pollRepo,
-		mediaRepo: mediaRepo,
+		postRepo:   postRepo,
+		pollRepo:   pollRepo,
+		mediaRepo:  mediaRepo,
+		followRepo: followRepo,
 	}
 }
 
@@ -59,7 +61,7 @@ func (s *postService) CreatePost(ctx context.Context, authorID uuid.UUID, req dt
 	visibility := model.VisibilityPublic
 	if req.Visibility != "" {
 		switch model.Visibility(req.Visibility) {
-		case model.VisibilityPublic, model.VisibilityFriends, model.VisibilityPrivate:
+		case model.VisibilityPublic, model.VisibilityFollower, model.VisibilityPrivate:
 			visibility = model.Visibility(req.Visibility)
 		default:
 			return nil, apperror.BadRequest("invalid visibility: %s", req.Visibility)
@@ -143,6 +145,10 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uui
 			return nil, apperror.NotFound("post not found")
 		}
 		return nil, apperror.Internal("failed to retrieve post")
+	}
+
+	if err := s.checkVisibilityAccess(ctx, result, userID); err != nil {
+		return nil, err
 	}
 
 	resp := dto.ToPostDetailResponse(*result)
@@ -411,6 +417,35 @@ func (s *postService) enrichWithPollAndMedia(ctx context.Context, resp *dto.Post
 func (s *postService) enrichSlice(ctx context.Context, responses []dto.PostDetailResponse, userID *uuid.UUID) {
 	for i := range responses {
 		_ = s.enrichWithPollAndMedia(ctx, &responses[i], userID)
+	}
+}
+
+func (s *postService) checkVisibilityAccess(ctx context.Context, post *model.PostWithAuthor, viewerID *uuid.UUID) error {
+	switch post.Visibility {
+	case model.VisibilityPublic:
+		return nil
+	case model.VisibilityFollower:
+		if viewerID == nil {
+			return apperror.NotFound("post not found")
+		}
+		if post.AuthorID == *viewerID {
+			return nil
+		}
+		isFollowing, err := s.followRepo.IsFollowing(ctx, *viewerID, post.AuthorID)
+		if err != nil {
+			return apperror.Internal("failed to check follow relationship")
+		}
+		if !isFollowing {
+			return apperror.NotFound("post not found")
+		}
+		return nil
+	case model.VisibilityPrivate:
+		if viewerID == nil || post.AuthorID != *viewerID {
+			return apperror.NotFound("post not found")
+		}
+		return nil
+	default:
+		return nil
 	}
 }
 

@@ -114,8 +114,25 @@
 - [x] 테스트 작성 (Go service 테스트 통과)
 - [x] 코드 리뷰 (Critical 4건 수정, Warning 수정)
 - [ ] PR 생성
+- [x] Phase G: 공개 범위(Visibility) 설정
+  - [x] friends → follower 리네이밍 (model, dto, DB 마이그레이션)
+  - [x] 백엔드 Repository visibility 필터링 (피드 쿼리 8개+ 수정)
+  - [x] Service 레이어 checkVisibilityAccess (ReBAC 접근 제어)
+  - [x] PostService에 FollowRepository 의존성 추가
+  - [x] VisibilitySelector 컴포넌트 (Globe/Users/Lock 드롭다운)
+  - [x] VisibilityBadge 컴포넌트 (PostCard/PostDetailPage)
+- [x] Phase H: 글쓰기 페이지 분리
+  - [x] ComposePage (/compose) 신규 생성
+  - [x] HomePage 인라인 ComposeForm 제거
+  - [x] Sidebar 글쓰기 버튼 → /compose 이동
+  - [x] MobileNav 홈-글쓰기(하이라이트)-프로필 순서 변경
+  - [x] 답글 버튼 → /compose?replyTo={id} (부모글 컨텍스트 표시)
+  - [x] PostDetailPage ReplyForm 제거 (compose 페이지로 통합)
+- [x] Visibility 테스트 (9개 table-driven 케이스 통과)
+- [x] 코드 리뷰 (보안 체크 통과, MobileNav/PostDetailPage 수정)
 
 ## 최근 변경 로그
+- 2026-03-06: 공개 범위 설정 + 글쓰기 페이지 분리 + 답글 컨텍스트 구현
 - 2026-03-06: 글쓰기 커스터마이징 - 마크다운/미디어/위치/투표 구현
 - 2026-03-06: 백엔드 인프라 개선 - Validator, Logging(slog), DI(fx) 도입
 - 2026-03-06: 이슈 #31 Profile 페이지 탭 콘텐츠 구현 (게시물/답글/좋아요)
