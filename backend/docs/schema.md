@@ -11,11 +11,13 @@ erDiagram
     users ||--o{ bookmarks : "북마크"
     users ||--o{ post_media : "업로드"
     users ||--o{ poll_votes : "투표"
+    users ||--o{ reposts : "리포스트"
     posts ||--o{ posts : "답글 (parent_id)"
     posts ||--o{ likes : "좋아요"
     posts ||--o{ bookmarks : "북마크"
     posts ||--o{ post_media : "미디어"
-    posts ||--o| polls : "투표"
+    posts ||--o{ reposts : "리포스트"
+    posts o|--o{ polls : "투표"
     polls ||--o{ poll_options : "선택지"
     polls ||--o{ poll_votes : "투표"
 
@@ -40,6 +42,7 @@ erDiagram
         varchar visibility "public|follower|private"
         int like_count
         int reply_count
+        int repost_count
         int view_count
         float location_lat "nullable"
         float location_lng "nullable"
@@ -62,6 +65,12 @@ erDiagram
     }
 
     bookmarks {
+        uuid user_id PK_FK
+        uuid post_id PK_FK
+        timestamptz created_at
+    }
+
+    reposts {
         uuid user_id PK_FK
         uuid post_id PK_FK
         timestamptz created_at
@@ -121,8 +130,8 @@ erDiagram
 | `username` | `VARCHAR(50)` | UNIQUE, NOT NULL | 로그인 및 멘션용 핸들 |
 | `display_name` | `VARCHAR(100)` | NOT NULL, DEFAULT `''` | 화면 표시 이름 |
 | `bio` | `TEXT` | NOT NULL, DEFAULT `''` | 자기소개 |
-| `profile_image_url` | `TEXT` | NOT NULL, DEFAULT `''` | 프로필 이미지 URL |
-| `header_image_url` | `TEXT` | NOT NULL, DEFAULT `''` | 헤더 이미지 URL |
+| `profile_image_url` | `TEXT` | NOT NULL, DEFAULT `''` | 프로필 이미지 URL (media-service 경유) |
+| `header_image_url` | `TEXT` | NOT NULL, DEFAULT `''` | 헤더 이미지 URL (media-service 경유) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 가입일 |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 수정일 |
 
@@ -139,6 +148,7 @@ erDiagram
 | `visibility` | `VARCHAR(20)` | NOT NULL, DEFAULT `'public'` | 공개 범위 (public/follower/private) |
 | `like_count` | `INT` | NOT NULL, DEFAULT `0` | 좋아요 수 |
 | `reply_count` | `INT` | NOT NULL, DEFAULT `0` | 답글 수 |
+| `repost_count` | `INT` | NOT NULL, DEFAULT `0` | 리포스트 수 |
 | `view_count` | `INT` | NOT NULL, DEFAULT `0` | 조회수 |
 | `location_lat` | `DOUBLE PRECISION` | nullable | 위치 위도 |
 | `location_lng` | `DOUBLE PRECISION` | nullable | 위치 경도 |
@@ -179,9 +189,19 @@ erDiagram
 | `post_id` | `UUID` | PK, FK → `posts.id` | 대상 게시글 |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 북마크 시각 |
 
+### `reposts`
+
+게시글 리포스트 (리트윗).
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `user_id` | `UUID` | PK, FK → `users.id` ON DELETE CASCADE | 리포스트 한 사용자 |
+| `post_id` | `UUID` | PK, FK → `posts.id` ON DELETE CASCADE | 대상 게시글 |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 리포스트 시각 |
+
 ### `post_media`
 
-게시글 첨부 미디어.
+게시글 첨부 미디어. 모든 미디어는 media-service(S3)를 통해 업로드.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -189,7 +209,7 @@ erDiagram
 | `post_id` | `UUID` | FK → `posts.id`, nullable | 연결된 게시글 |
 | `uploader_id` | `UUID` | FK → `users.id`, NOT NULL | 업로더 |
 | `url` | `TEXT` | NOT NULL | 미디어 URL |
-| `media_type` | `VARCHAR(10)` | NOT NULL | 타입 (image/video) |
+| `media_type` | `VARCHAR(10)` | NOT NULL | 타입 (image/video/gif) |
 | `mime_type` | `VARCHAR(50)` | NOT NULL | MIME 타입 |
 | `width` | `INT` | nullable | 가로 크기 |
 | `height` | `INT` | nullable | 세로 크기 |
@@ -257,6 +277,10 @@ CREATE INDEX idx_likes_post_id ON likes(post_id);
 -- bookmarks
 CREATE INDEX idx_bookmarks_user_created ON bookmarks(user_id, created_at DESC);
 
+-- reposts
+CREATE INDEX idx_reposts_post_id ON reposts(post_id);
+CREATE INDEX idx_reposts_user_created ON reposts(user_id, created_at DESC);
+
 -- post_media
 CREATE INDEX idx_post_media_post_id ON post_media(post_id);
 CREATE INDEX idx_post_media_uploader_id ON post_media(uploader_id);
@@ -293,6 +317,20 @@ WHERE p.deleted_at IS NULL
   )
 ORDER BY p.created_at DESC;
 ```
+
+## Media Storage Architecture
+
+모든 미디어 파일은 media-service(S3/MinIO)를 통해 업로드 및 처리:
+
+```
+Frontend → POST /media/upload → media-service → S3
+         → Poll /media/{id}/status (ready/processing/failed)
+         → GET /media/{id}?size=small|medium|large|original
+```
+
+- 이미지: 4종 리사이즈 (320/768/1440/2560px) + WebP 변환
+- 비디오: WebM 변환
+- 프로필/헤더 이미지도 동일 플로우
 
 ## Seed Data
 

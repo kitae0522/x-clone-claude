@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import type { APIResponse, MediaItem } from "@/types/api";
+import type { MediaItem } from "@/types/api";
+import { pollMediaStatus } from "@/lib/media";
 
 interface UploadProgress {
   id: string;
@@ -25,54 +26,19 @@ const ALLOWED_TYPES: Record<
   "video/webm": { type: "video", maxSize: MAX_VIDEO_SIZE },
 };
 
-const POLL_INTERVAL = 1500;
-const MAX_POLL_ATTEMPTS = 120;
-
 async function pollForReady(mediaId: string): Promise<MediaItem> {
-  for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const res = await fetch(`/media/${mediaId}/status`, {
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
-
-    const json: APIResponse<{
-      id: string;
-      status: string;
-      mediaType: string;
-      mimeType: string;
-      width: number;
-      height: number;
-      size: number;
-      url: string;
-      error: string;
-    }> = await res.json();
-
-    if (!json.success) throw new Error(json.error ?? "Status check failed");
-
-    const data = json.data;
-
-    if (data.status === "ready") {
-      return {
-        id: data.id,
-        url: `/media/${data.id}?size=medium`,
-        type: data.mediaType as MediaItem["type"],
-        mimeType: data.mimeType,
-        width: data.width || null,
-        height: data.height || null,
-        size: data.size,
-        duration: null,
-        status: "ready",
-      };
-    }
-
-    if (data.status === "failed") {
-      throw new Error(data.error || "Processing failed");
-    }
-
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-  }
-
-  throw new Error("Processing timed out");
+  const data = await pollMediaStatus(mediaId);
+  return {
+    id: data.id,
+    url: `/media/${data.id}?size=medium`,
+    type: data.mediaType as MediaItem["type"],
+    mimeType: data.mimeType,
+    width: data.width || null,
+    height: data.height || null,
+    size: data.size,
+    duration: null,
+    status: "ready",
+  };
 }
 
 export function useMediaUpload(initialItems: MediaItem[] = []) {

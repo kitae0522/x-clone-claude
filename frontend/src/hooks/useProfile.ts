@@ -1,64 +1,76 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { APIResponse, ProfileUser, UpdateProfileRequest, User } from '@/types/api'
-import { apiFetch } from '@/lib/api'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  APIResponse,
+  ProfileUser,
+  UpdateProfileRequest,
+  User,
+} from "@/types/api";
+import { apiFetch } from "@/lib/api";
+import { pollMediaStatus } from "@/lib/media";
 
 async function fetchProfile(handle: string): Promise<ProfileUser> {
-  const res = await apiFetch(`/api/users/${handle}`)
-  const json: APIResponse<ProfileUser> = await res.json()
+  const res = await apiFetch(`/api/users/${handle}`);
+  const json: APIResponse<ProfileUser> = await res.json();
   if (!json.success) {
-    throw new Error(json.error ?? 'Failed to fetch profile')
+    throw new Error(json.error ?? "Failed to fetch profile");
   }
-  return json.data
+  return json.data;
 }
 
 async function putUpdateProfile(data: UpdateProfileRequest): Promise<User> {
-  const res = await apiFetch('/api/users/profile', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+  const res = await apiFetch("/api/users/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
-  })
-  const json: APIResponse<User> = await res.json()
+  });
+  const json: APIResponse<User> = await res.json();
   if (!json.success) {
-    throw new Error(json.error ?? 'Failed to update profile')
+    throw new Error(json.error ?? "Failed to update profile");
   }
-  return json.data
+  return json.data;
 }
 
 export function useProfile(handle: string, enabled: boolean = true) {
   return useQuery({
-    queryKey: ['users', handle],
+    queryKey: ["users", handle],
     queryFn: () => fetchProfile(handle),
     enabled: !!handle && enabled,
-  })
+  });
 }
 
 async function postUploadImage(file: File): Promise<string> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const res = await apiFetch('/api/media/upload', {
-    method: 'POST',
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // Step 1: Upload to media-service (S3)
+  const uploadRes = await fetch("/media/upload", {
+    method: "POST",
     body: formData,
-  })
-  const json: APIResponse<{ url: string }> = await res.json()
-  if (!json.success) {
-    throw new Error(json.error ?? '이미지 업로드에 실패했습니다.')
+    credentials: "include",
+  });
+  const uploadJson: APIResponse<{ id: string }> = await uploadRes.json();
+  if (!uploadJson.success) {
+    throw new Error(uploadJson.error ?? "이미지 업로드에 실패했습니다.");
   }
-  return json.data.url
+
+  // Step 2: Poll for processing completion (resize + WebP conversion)
+  const result = await pollMediaStatus(uploadJson.data.id);
+  return `/media/${result.id}?size=medium`;
 }
 
 export function useUploadProfileImage() {
   return useMutation({
     mutationFn: postUploadImage,
-  })
+  });
 }
 
 export function useUpdateProfile() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: putUpdateProfile,
     onSuccess: (user) => {
-      queryClient.setQueryData(['auth', 'me'], user)
-      queryClient.invalidateQueries({ queryKey: ['users', user.username] })
+      queryClient.setQueryData(["auth", "me"], user);
+      queryClient.invalidateQueries({ queryKey: ["users", user.username] });
     },
-  })
+  });
 }
