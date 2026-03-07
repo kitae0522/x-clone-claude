@@ -102,5 +102,5 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 }
 
 func isAllowedImageURL(url string) bool {
-	return strings.HasPrefix(url, "/media/") || strings.HasPrefix(url, "https://")
+	return strings.HasPrefix(url, "/media/") || strings.HasPrefix(url, "/uploads/") || strings.HasPrefix(url, "https://")
 }
