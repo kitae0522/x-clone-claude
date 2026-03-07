@@ -6,8 +6,8 @@ type UpdateProfileRequest struct {
 	DisplayName     string `json:"displayName"     validate:"omitempty,max=50"`
 	Bio             string `json:"bio"             validate:"omitempty,max=160"`
 	Username        string `json:"username"        validate:"omitempty,min=3,max=30,alphanum"`
-	ProfileImageURL string `json:"profileImageUrl" validate:"omitempty,url"`
-	HeaderImageURL  string `json:"headerImageUrl"  validate:"omitempty,url"`
+	ProfileImageURL string `json:"profileImageUrl" validate:"omitempty"`
+	HeaderImageURL  string `json:"headerImageUrl"  validate:"omitempty"`
 }
 
 type ProfileResponse struct {
