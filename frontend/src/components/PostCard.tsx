@@ -16,6 +16,7 @@ import VisibilityBadge from "@/components/VisibilityBadge";
 import type { PostDetail } from "@/types/api";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
+import { useRepost } from "@/hooks/useRepost";
 import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
@@ -59,12 +60,19 @@ function PostCard({ post }: PostCardProps) {
 
   const deletePost = useDeletePost(post.id);
   const like = useLike(post.id, post.isLiked);
+  const repost = useRepost(post.id, post.isReposted);
   const bookmark = useBookmark(post.id, post.isBookmarked);
 
   function handleLikeClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (!currentUser) return;
     like.mutate();
+  }
+
+  function handleRepostClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!currentUser || isOwner) return;
+    repost.mutate();
   }
 
   return (
@@ -77,6 +85,28 @@ function PostCard({ post }: PostCardProps) {
         if (e.key === "Enter") navigate(`/post/${post.id}`);
       }}
     >
+      {post.repostedBy && (
+        <div className="flex items-center gap-1.5 px-4 pb-1 text-[13px] text-muted-foreground">
+          <Repeat2 size={14} className="text-green-500" />
+          <span>
+            <ProfileHoverCard
+              handle={post.repostedBy.username}
+              currentUsername={currentUser?.username}
+            >
+              <span
+                className="cursor-pointer hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/${post.repostedBy!.username}`);
+                }}
+              >
+                {post.repostedBy.displayName || post.repostedBy.username}
+              </span>
+            </ProfileHoverCard>
+            님이 재게시함
+          </span>
+        </div>
+      )}
       <div className="flex gap-3">
         <div
           className="mt-0.5 shrink-0 cursor-pointer"
@@ -255,13 +285,28 @@ function PostCard({ post }: PostCardProps) {
 
             {/* Repost */}
             <button
-              onClick={(e) => e.stopPropagation()}
-              className="group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-green-500/10"
+              onClick={handleRepostClick}
+              disabled={isOwner}
+              className={cn(
+                "group flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-transparent p-2 transition-colors hover:bg-green-500/10",
+                isOwner && "cursor-not-allowed opacity-50",
+              )}
             >
               <Repeat2
                 size={18}
-                className="text-muted-foreground transition-colors group-hover:text-green-500"
+                className={cn(
+                  "transition-colors group-hover:text-green-500",
+                  post.isReposted ? "text-green-500" : "text-muted-foreground",
+                )}
               />
+              <span
+                className={cn(
+                  "text-[13px] transition-colors group-hover:text-green-500",
+                  post.isReposted ? "text-green-500" : "text-muted-foreground",
+                )}
+              >
+                {post.repostCount || ""}
+              </span>
             </button>
 
             {/* Like */}

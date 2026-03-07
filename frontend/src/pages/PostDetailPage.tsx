@@ -15,6 +15,7 @@ import {
 import { usePostDetail, useParentChain, useDeletePost } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useLike } from "@/hooks/useLike";
+import { useRepost } from "@/hooks/useRepost";
 import { useBookmark } from "@/hooks/useBookmark";
 import { formatRelativeTime, formatCompactNumber } from "@/lib/formatTime";
 import ProfileHoverCard from "@/components/ProfileHoverCard";
@@ -58,6 +59,7 @@ export default function PostDetailPage() {
   const authorUsername = post?.author.username ?? "";
   const isOwner = currentUser?.username === authorUsername;
   const like = useLike(postId, post?.isLiked ?? false);
+  const repost = useRepost(postId, post?.isReposted ?? false);
   const bookmark = useBookmark(postId, post?.isBookmarked ?? false);
   const deletePost = useDeletePost(postId);
   const { data: parentChain } = useParentChain(post?.parentId ?? null);
@@ -87,6 +89,11 @@ export default function PostDetailPage() {
   function handleLikeClick() {
     if (!currentUser) return;
     like.mutate();
+  }
+
+  function handleRepostClick() {
+    if (!currentUser || isOwner) return;
+    repost.mutate();
   }
 
   return (
@@ -240,7 +247,10 @@ export default function PostDetailPage() {
         </div>
 
         {/* Stats */}
-        {(post.likeCount > 0 || post.replyCount > 0 || post.viewCount > 0) && (
+        {(post.likeCount > 0 ||
+          post.replyCount > 0 ||
+          post.viewCount > 0 ||
+          post.repostCount > 0) && (
           <div className="mt-3 flex gap-4 border-t border-border pt-3 text-sm">
             {post.viewCount > 0 && (
               <span className="text-muted-foreground">
@@ -254,6 +264,12 @@ export default function PostDetailPage() {
               <span className="text-muted-foreground">
                 <strong className="text-foreground">{post.replyCount}</strong>{" "}
                 답글
+              </span>
+            )}
+            {post.repostCount > 0 && (
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">{post.repostCount}</strong>{" "}
+                재게시
               </span>
             )}
             {post.likeCount > 0 && (
@@ -276,10 +292,20 @@ export default function PostDetailPage() {
               className="text-muted-foreground transition-colors group-hover:text-primary"
             />
           </button>
-          <button className="group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-green-500/10">
+          <button
+            onClick={handleRepostClick}
+            disabled={isOwner}
+            className={cn(
+              "group flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 transition-colors hover:bg-green-500/10",
+              isOwner && "cursor-not-allowed opacity-50",
+            )}
+          >
             <Repeat2
               size={20}
-              className="text-muted-foreground transition-colors group-hover:text-green-500"
+              className={cn(
+                "transition-colors group-hover:text-green-500",
+                post.isReposted ? "text-green-500" : "text-muted-foreground",
+              )}
             />
           </button>
           <button

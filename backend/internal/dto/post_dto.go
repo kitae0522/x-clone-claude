@@ -78,14 +78,22 @@ type PostDetailResponse struct {
 	LikeCount    int                  `json:"likeCount"`
 	ReplyCount   int                  `json:"replyCount"`
 	ViewCount    int                  `json:"viewCount"`
+	RepostCount  int                  `json:"repostCount"`
 	IsLiked      bool                 `json:"isLiked"`
 	IsBookmarked bool                 `json:"isBookmarked"`
+	IsReposted   bool                 `json:"isReposted"`
+	RepostedBy   *RepostedBy          `json:"repostedBy,omitempty"`
 	Location     *LocationResponse    `json:"location,omitempty"`
 	Poll         *PollResponse        `json:"poll,omitempty"`
 	Media        []MediaResponse      `json:"media,omitempty"`
 	TopReplies   []PostDetailResponse `json:"topReplies"`
 	CreatedAt    string               `json:"createdAt"`
 	UpdatedAt    string               `json:"updatedAt"`
+}
+
+type RepostedBy struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
 }
 
 type UpdatePostRequest struct {
@@ -141,10 +149,19 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		LikeCount:    p.LikeCount,
 		ReplyCount:   p.ReplyCount,
 		ViewCount:    p.ViewCount,
+		RepostCount:  p.RepostCount,
 		IsLiked:      p.IsLiked,
 		IsBookmarked: p.IsBookmarked,
+		IsReposted:   p.IsReposted,
 		CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:    p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if p.RepostedByUsername != nil {
+		resp.RepostedBy = &RepostedBy{
+			Username:    *p.RepostedByUsername,
+			DisplayName: derefStr(p.RepostedByDisplayName),
+		}
 	}
 
 	if p.LocationLat != nil && p.LocationLng != nil {

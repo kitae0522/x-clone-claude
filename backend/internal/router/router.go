@@ -24,6 +24,7 @@ type Params struct {
 	UserHandler     *handler.UserHandler
 	MediaHandler    *handler.MediaHandler
 	PollHandler     *handler.PollHandler
+	RepostHandler   *handler.RepostHandler
 }
 
 func Setup(p Params) {
@@ -50,6 +51,8 @@ func Setup(p Params) {
 	posts.Delete("/:id/bookmark", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.Unbookmark)
 	posts.Post("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Vote)
 	posts.Delete("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Unvote)
+	posts.Post("/:id/repost", middleware.AuthRequired(jwtSecret), p.RepostHandler.Repost)
+	posts.Delete("/:id/repost", middleware.AuthRequired(jwtSecret), p.RepostHandler.Unrepost)
 
 	auth := api.Group("/auth")
 	auth.Post("/register", p.AuthHandler.Register)
