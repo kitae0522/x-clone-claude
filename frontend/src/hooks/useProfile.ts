@@ -6,6 +6,7 @@ import type {
   User,
 } from "@/types/api";
 import { apiFetch } from "@/lib/api";
+import { pollMediaStatus } from "@/lib/media";
 
 async function fetchProfile(handle: string): Promise<ProfileUser> {
   const res = await apiFetch(`/api/users/${handle}`);
@@ -37,9 +38,6 @@ export function useProfile(handle: string, enabled: boolean = true) {
   });
 }
 
-const POLL_INTERVAL = 1500;
-const MAX_POLL_ATTEMPTS = 60;
-
 async function postUploadImage(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
@@ -55,31 +53,9 @@ async function postUploadImage(file: File): Promise<string> {
     throw new Error(uploadJson.error ?? "이미지 업로드에 실패했습니다.");
   }
 
-  const mediaId = uploadJson.data.id;
-
   // Step 2: Poll for processing completion (resize + WebP conversion)
-  for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const statusRes = await fetch(`/media/${mediaId}/status`, {
-      credentials: "include",
-    });
-    if (!statusRes.ok) throw new Error("상태 확인에 실패했습니다.");
-
-    const statusJson: APIResponse<{ status: string; error?: string }> =
-      await statusRes.json();
-    if (!statusJson.success)
-      throw new Error(statusJson.error ?? "상태 확인에 실패했습니다.");
-
-    if (statusJson.data.status === "ready") {
-      return `/media/${mediaId}?size=medium`;
-    }
-    if (statusJson.data.status === "failed") {
-      throw new Error(statusJson.data.error || "이미지 처리에 실패했습니다.");
-    }
-
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-  }
-
-  throw new Error("이미지 처리 시간이 초과되었습니다.");
+  const result = await pollMediaStatus(uploadJson.data.id);
+  return `/media/${result.id}?size=medium`;
 }
 
 export function useUploadProfileImage() {

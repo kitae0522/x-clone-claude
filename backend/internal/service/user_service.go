@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -80,9 +81,15 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 	}
 	user.Bio = req.Bio
 	if req.ProfileImageURL != "" {
+		if !isAllowedImageURL(req.ProfileImageURL) {
+			return nil, apperror.BadRequest("invalid profile image URL format")
+		}
 		user.ProfileImageURL = req.ProfileImageURL
 	}
 	if req.HeaderImageURL != "" {
+		if !isAllowedImageURL(req.HeaderImageURL) {
+			return nil, apperror.BadRequest("invalid header image URL format")
+		}
 		user.HeaderImageURL = req.HeaderImageURL
 	}
 
@@ -92,4 +99,8 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 
 	resp := dto.ToUserResponse(user)
 	return &resp, nil
+}
+
+func isAllowedImageURL(url string) bool {
+	return strings.HasPrefix(url, "/media/") || strings.HasPrefix(url, "https://")
 }
