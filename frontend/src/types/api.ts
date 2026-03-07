@@ -144,8 +144,11 @@ export interface PostDetail {
   likeCount: number;
   replyCount: number;
   viewCount: number;
+  repostCount: number;
   isLiked: boolean;
   isBookmarked: boolean;
+  isReposted: boolean;
+  repostedBy?: { username: string; displayName: string } | null;
   media?: MediaItem[] | null;
   location?: LocationData | null;
   poll?: PollData | null;
@@ -187,6 +190,10 @@ export interface CreateReplyRequest {
 
 export interface LikeStatusResponse {
   liked: boolean;
+}
+
+export interface RepostStatusResponse {
+  reposted: boolean;
 }
 
 export interface BookmarkStatusResponse {

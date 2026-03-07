@@ -57,7 +57,7 @@ func (r *postRepository) Create(ctx context.Context, post *model.Post) error {
 func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -66,7 +66,7 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
@@ -79,15 +79,41 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 
 func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
-		       u.username, u.display_name, u.profile_image_url,
-		       p.location_lat, p.location_lng, p.location_name
-		FROM posts p
-		JOIN users u ON p.author_id = u.id
-		WHERE p.parent_id IS NULL
-		  AND p.visibility = 'public'
-		  AND p.deleted_at IS NULL
-		ORDER BY p.created_at DESC
+		SELECT id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		       username, display_name, profile_image_url,
+		       location_lat, location_lng, location_name,
+		       reposted_by_username, reposted_by_display_name, reposted_at
+		FROM (
+		  SELECT DISTINCT ON (id) id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		         username, display_name, profile_image_url,
+		         location_lat, location_lng, location_name,
+		         reposted_by_username, reposted_by_display_name, reposted_at, sort_time
+		  FROM (
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           p.location_lat, p.location_lng, p.location_name,
+		           NULL::TEXT AS reposted_by_username, NULL::TEXT AS reposted_by_display_name, NULL::TIMESTAMPTZ AS reposted_at,
+		           p.created_at AS sort_time
+		    FROM posts p
+		    JOIN users u ON p.author_id = u.id
+		    WHERE p.parent_id IS NULL AND p.visibility = 'public' AND p.deleted_at IS NULL
+
+		    UNION ALL
+
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           p.location_lat, p.location_lng, p.location_name,
+		           ru.username AS reposted_by_username, ru.display_name AS reposted_by_display_name, rp.created_at AS reposted_at,
+		           rp.created_at AS sort_time
+		    FROM reposts rp
+		    JOIN posts p ON p.id = rp.post_id
+		    JOIN users u ON p.author_id = u.id
+		    JOIN users ru ON rp.user_id = ru.id
+		    WHERE p.parent_id IS NULL AND p.visibility = 'public' AND p.deleted_at IS NULL
+		  ) sub
+		  ORDER BY id, sort_time DESC
+		) deduped
+		ORDER BY sort_time DESC
 		LIMIT $1 OFFSET $2`
 
 	rows, err := r.pool.Query(ctx, query, limit, offset)
@@ -101,9 +127,10 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
+			&p.RepostedByUsername, &p.RepostedByDisplayName, &p.RepostedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -116,10 +143,11 @@ func (r *postRepository) FindAll(ctx context.Context, limit, offset int) ([]mode
 func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $2 AND b.post_id = p.id) AS is_bookmarked,
+		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $2 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
@@ -127,9 +155,9 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-		&p.IsLiked, &p.IsBookmarked,
+		&p.IsLiked, &p.IsBookmarked, &p.IsReposted,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
 	if err != nil {
@@ -141,24 +169,66 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 
 func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
-		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
-		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
-		       p.location_lat, p.location_lng, p.location_name
-		FROM posts p
-		JOIN users u ON p.author_id = u.id
-		WHERE p.parent_id IS NULL
-		  AND (
-		    p.visibility = 'public'
-		    OR (p.visibility = 'follower' AND (
-		      p.author_id = $3
-		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $3 AND f.following_id = p.author_id)
-		    ))
-		    OR (p.visibility = 'private' AND p.author_id = $3)
-		  )
-		  AND p.deleted_at IS NULL
-		ORDER BY p.created_at DESC
+		SELECT id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		       username, display_name, profile_image_url,
+		       is_liked, is_bookmarked, is_reposted,
+		       location_lat, location_lng, location_name,
+		       reposted_by_username, reposted_by_display_name, reposted_at
+		FROM (
+		  SELECT DISTINCT ON (id) id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		         username, display_name, profile_image_url,
+		         is_liked, is_bookmarked, is_reposted,
+		         location_lat, location_lng, location_name,
+		         reposted_by_username, reposted_by_display_name, reposted_at, sort_time
+		  FROM (
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
+		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
+		           p.location_lat, p.location_lng, p.location_name,
+		           NULL::TEXT AS reposted_by_username, NULL::TEXT AS reposted_by_display_name, NULL::TIMESTAMPTZ AS reposted_at,
+		           p.created_at AS sort_time
+		    FROM posts p
+		    JOIN users u ON p.author_id = u.id
+		    WHERE p.parent_id IS NULL
+		      AND (
+		        p.visibility = 'public'
+		        OR (p.visibility = 'follower' AND (
+		          p.author_id = $3
+		          OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $3 AND f.following_id = p.author_id)
+		        ))
+		        OR (p.visibility = 'private' AND p.author_id = $3)
+		      )
+		      AND p.deleted_at IS NULL
+
+		    UNION ALL
+
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
+		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
+		           p.location_lat, p.location_lng, p.location_name,
+		           ru.username AS reposted_by_username, ru.display_name AS reposted_by_display_name, rp.created_at AS reposted_at,
+		           rp.created_at AS sort_time
+		    FROM reposts rp
+		    JOIN posts p ON p.id = rp.post_id
+		    JOIN users u ON p.author_id = u.id
+		    JOIN users ru ON rp.user_id = ru.id
+		    WHERE p.parent_id IS NULL AND p.deleted_at IS NULL
+		      AND (
+		        p.visibility = 'public'
+		        OR (p.visibility = 'follower' AND (
+		          p.author_id = $3
+		          OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $3 AND f.following_id = p.author_id)
+		        ))
+		        OR (p.visibility = 'private' AND p.author_id = $3)
+		      )
+		  ) sub
+		  ORDER BY id, sort_time DESC
+		) deduped
+		ORDER BY sort_time DESC
 		LIMIT $1 OFFSET $2`
 
 	rows, err := r.pool.Query(ctx, query, limit, offset, userID)
@@ -172,10 +242,11 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-			&p.IsLiked, &p.IsBookmarked,
+			&p.IsLiked, &p.IsBookmarked, &p.IsReposted,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
+			&p.RepostedByUsername, &p.RepostedByDisplayName, &p.RepostedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -218,7 +289,7 @@ func (r *postRepository) CreateReply(ctx context.Context, post *model.Post) erro
 
 func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -239,7 +310,7 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
 		); err != nil {
@@ -254,7 +325,7 @@ func (r *postRepository) FindRepliesByPostID(ctx context.Context, postID uuid.UU
 func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, authorID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
@@ -266,7 +337,7 @@ func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, au
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, postID, authorID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
@@ -280,10 +351,11 @@ func (r *postRepository) FindAuthorReplyByPostID(ctx context.Context, postID, au
 func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, postID, authorID, userID uuid.UUID) (*model.PostWithAuthor, error) {
 	p := &model.PostWithAuthor{}
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
+		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
@@ -294,9 +366,9 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 
 	var visibility string
 	err := r.pool.QueryRow(ctx, query, postID, authorID, userID).Scan(
-		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-		&p.IsLiked, &p.IsBookmarked,
+		&p.IsLiked, &p.IsBookmarked, &p.IsReposted,
 		&p.LocationLat, &p.LocationLng, &p.LocationName,
 	)
 	if err != nil {
@@ -308,10 +380,11 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 
 func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID, userID uuid.UUID, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
+		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM posts p
 		JOIN users u ON p.author_id = u.id
@@ -331,9 +404,9 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		var p model.PostWithAuthor
 		var visibility string
 		if err := rows.Scan(
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
-			&p.IsLiked, &p.IsBookmarked,
+			&p.IsLiked, &p.IsBookmarked, &p.IsReposted,
 			&p.LocationLat, &p.LocationLng, &p.LocationName,
 		); err != nil {
 			return nil, err
@@ -359,11 +432,11 @@ func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model
 		var visibility string
 		var scanArgs []any
 		scanArgs = append(scanArgs,
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
-			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked)
+			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked, &p.IsReposted)
 		}
 		scanArgs = append(scanArgs, &p.LocationLat, &p.LocationLng, &p.LocationName)
 		if err := rows.Scan(scanArgs...); err != nil {
@@ -377,49 +450,155 @@ func (r *postRepository) scanPostRows(rows scannable, withIsLiked bool) ([]model
 
 func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
-		       u.username, u.display_name, u.profile_image_url,
-		       p.location_lat, p.location_lng, p.location_name
-		FROM posts p
-		JOIN users u ON p.author_id = u.id
-		WHERE u.username = $1 AND p.parent_id IS NULL
-		  AND p.visibility = 'public' AND p.deleted_at IS NULL
-		ORDER BY p.created_at DESC
+		SELECT id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		       username, display_name, profile_image_url,
+		       location_lat, location_lng, location_name,
+		       reposted_by_username, reposted_by_display_name, reposted_at
+		FROM (
+		  SELECT DISTINCT ON (id) id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		         username, display_name, profile_image_url,
+		         location_lat, location_lng, location_name,
+		         reposted_by_username, reposted_by_display_name, reposted_at, sort_time
+		  FROM (
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           p.location_lat, p.location_lng, p.location_name,
+		           NULL::TEXT AS reposted_by_username, NULL::TEXT AS reposted_by_display_name, NULL::TIMESTAMPTZ AS reposted_at,
+		           p.created_at AS sort_time
+		    FROM posts p
+		    JOIN users u ON p.author_id = u.id
+		    WHERE u.username = $1 AND p.parent_id IS NULL
+		      AND p.visibility = 'public' AND p.deleted_at IS NULL
+
+		    UNION ALL
+
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           p.location_lat, p.location_lng, p.location_name,
+		           ru.username AS reposted_by_username, ru.display_name AS reposted_by_display_name, rp.created_at AS reposted_at,
+		           rp.created_at AS sort_time
+		    FROM reposts rp
+		    JOIN users ru ON rp.user_id = ru.id
+		    JOIN posts p ON p.id = rp.post_id
+		    JOIN users u ON p.author_id = u.id
+		    WHERE ru.username = $1 AND p.parent_id IS NULL
+		      AND p.visibility = 'public' AND p.deleted_at IS NULL
+		  ) sub
+		  ORDER BY id, sort_time DESC
+		) deduped
+		ORDER BY sort_time DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := r.pool.Query(ctx, query, handle, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	return r.scanPostRows(rows, false)
+	defer rows.Close()
+
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		if err := rows.Scan(
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+			&p.LocationLat, &p.LocationLng, &p.LocationName,
+			&p.RepostedByUsername, &p.RepostedByDisplayName, &p.RepostedAt,
+		); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
 }
 
 func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
-		       u.username, u.display_name, u.profile_image_url,
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
-		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
-		       p.location_lat, p.location_lng, p.location_name
-		FROM posts p
-		JOIN users u ON p.author_id = u.id
-		WHERE u.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
-		  AND (
-		    p.visibility = 'public'
-		    OR (p.visibility = 'follower' AND (
-		      p.author_id = $4
-		      OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
-		    ))
-		    OR (p.visibility = 'private' AND p.author_id = $4)
-		  )
-		ORDER BY p.created_at DESC
+		SELECT id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		       username, display_name, profile_image_url,
+		       is_liked, is_bookmarked, is_reposted,
+		       location_lat, location_lng, location_name,
+		       reposted_by_username, reposted_by_display_name, reposted_at
+		FROM (
+		  SELECT DISTINCT ON (id) id, author_id, parent_id, content, visibility, like_count, reply_count, view_count, repost_count, created_at, updated_at,
+		         username, display_name, profile_image_url,
+		         is_liked, is_bookmarked, is_reposted,
+		         location_lat, location_lng, location_name,
+		         reposted_by_username, reposted_by_display_name, reposted_at, sort_time
+		  FROM (
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
+		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
+		           p.location_lat, p.location_lng, p.location_name,
+		           NULL::TEXT AS reposted_by_username, NULL::TEXT AS reposted_by_display_name, NULL::TIMESTAMPTZ AS reposted_at,
+		           p.created_at AS sort_time
+		    FROM posts p
+		    JOIN users u ON p.author_id = u.id
+		    WHERE u.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
+		      AND (
+		        p.visibility = 'public'
+		        OR (p.visibility = 'follower' AND (
+		          p.author_id = $4
+		          OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
+		        ))
+		        OR (p.visibility = 'private' AND p.author_id = $4)
+		      )
+
+		    UNION ALL
+
+		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
+		           u.username, u.display_name, u.profile_image_url,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
+		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
+		           p.location_lat, p.location_lng, p.location_name,
+		           ru.username AS reposted_by_username, ru.display_name AS reposted_by_display_name, rp.created_at AS reposted_at,
+		           rp.created_at AS sort_time
+		    FROM reposts rp
+		    JOIN users ru ON rp.user_id = ru.id
+		    JOIN posts p ON p.id = rp.post_id
+		    JOIN users u ON p.author_id = u.id
+		    WHERE ru.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
+		      AND (
+		        p.visibility = 'public'
+		        OR (p.visibility = 'follower' AND (
+		          p.author_id = $4
+		          OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $4 AND f.following_id = p.author_id)
+		        ))
+		        OR (p.visibility = 'private' AND p.author_id = $4)
+		      )
+		  ) sub
+		  ORDER BY id, sort_time DESC
+		) deduped
+		ORDER BY sort_time DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := r.pool.Query(ctx, query, handle, limit, offset, userID)
 	if err != nil {
 		return nil, err
 	}
-	return r.scanPostRows(rows, true)
+	defer rows.Close()
+
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		if err := rows.Scan(
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+			&p.IsLiked, &p.IsBookmarked, &p.IsReposted,
+			&p.LocationLat, &p.LocationLng, &p.LocationName,
+			&p.RepostedByUsername, &p.RepostedByDisplayName, &p.RepostedAt,
+		); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
 }
 
 func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked bool) ([]model.PostWithAuthor, error) {
@@ -430,11 +609,11 @@ func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked boo
 		var visibility string
 		var scanArgs []any
 		scanArgs = append(scanArgs,
-			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt,
 			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
 		)
 		if withIsLiked {
-			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked)
+			scanArgs = append(scanArgs, &p.IsLiked, &p.IsBookmarked, &p.IsReposted)
 		}
 		scanArgs = append(scanArgs, &p.LocationLat, &p.LocationLng, &p.LocationName)
 		scanArgs = append(scanArgs,
@@ -452,7 +631,7 @@ func (r *postRepository) scanReplyWithParentRows(rows scannable, withIsLiked boo
 
 func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name,
 		       pp.id, pp.content,
@@ -475,10 +654,11 @@ func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle s
 
 func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, handle string, limit, offset int, userID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
+		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name,
 		       pp.id, pp.content,
 		       pu.username, pu.display_name, pu.profile_image_url
@@ -507,7 +687,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 
 func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle string, limit, offset int) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM likes lk
@@ -528,10 +708,11 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 
 func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, handle string, limit, offset int, viewerID uuid.UUID) ([]model.PostWithAuthor, error) {
 	query := `
-		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.created_at, p.updated_at,
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       u.username, u.display_name, u.profile_image_url,
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
+		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM likes lk
 		JOIN users target ON target.username = $1

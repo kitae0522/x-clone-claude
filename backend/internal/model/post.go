@@ -23,6 +23,7 @@ type Post struct {
 	LikeCount    int
 	ReplyCount   int
 	ViewCount    int
+	RepostCount  int
 	LocationLat  *float64
 	LocationLng  *float64
 	LocationName *string
@@ -38,6 +39,10 @@ type PostWithAuthor struct {
 	AuthorProfileImageURL string
 	IsLiked               bool
 	IsBookmarked          bool
+	IsReposted            bool
+	RepostedByUsername    *string
+	RepostedByDisplayName *string
+	RepostedAt            *time.Time
 	LocationLat           *float64
 	LocationLng           *float64
 	LocationName          *string
