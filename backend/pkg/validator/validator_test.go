@@ -20,8 +20,8 @@ type updateProfileRequest struct {
 	DisplayName     string `json:"displayName"     validate:"omitempty,max=50"`
 	Bio             string `json:"bio"             validate:"omitempty,max=160"`
 	Username        string `json:"username"        validate:"omitempty,min=3,max=30,alphanum"`
-	ProfileImageURL string `json:"profileImageUrl" validate:"omitempty,url"`
-	HeaderImageURL  string `json:"headerImageUrl"  validate:"omitempty,url"`
+	ProfileImageURL string `json:"profileImageUrl" validate:"omitempty"`
+	HeaderImageURL  string `json:"headerImageUrl"  validate:"omitempty"`
 }
 
 func TestValidate_RegisterRequest(t *testing.T) {
@@ -226,22 +226,12 @@ func TestValidate_UpdateProfileRequest(t *testing.T) {
 			wantMessage: "must be at most 160 characters",
 		},
 		{
-			name: "invalid profile image URL",
+			name: "relative path image URL is accepted",
 			input: updateProfileRequest{
-				ProfileImageURL: "not-a-url",
+				ProfileImageURL: "/uploads/2026/03/image.jpg",
+				HeaderImageURL:  "/uploads/2026/03/header.jpg",
 			},
-			wantErr:     true,
-			wantField:   "profile_image_u_r_l",
-			wantMessage: "must be a valid URL",
-		},
-		{
-			name: "invalid header image URL",
-			input: updateProfileRequest{
-				HeaderImageURL: "not-a-url",
-			},
-			wantErr:     true,
-			wantField:   "header_image_u_r_l",
-			wantMessage: "must be a valid URL",
+			wantErr: false,
 		},
 	}
 

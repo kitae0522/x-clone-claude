@@ -21,6 +21,10 @@ export default defineConfig({
         target: "http://media-service:8081",
         changeOrigin: true,
       },
+      "/uploads": {
+        target: "http://backend:8080",
+        changeOrigin: true,
+      },
     },
   },
 });

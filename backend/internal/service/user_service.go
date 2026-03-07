@@ -79,8 +79,12 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 		user.DisplayName = req.DisplayName
 	}
 	user.Bio = req.Bio
-	user.ProfileImageURL = req.ProfileImageURL
-	user.HeaderImageURL = req.HeaderImageURL
+	if req.ProfileImageURL != "" {
+		user.ProfileImageURL = req.ProfileImageURL
+	}
+	if req.HeaderImageURL != "" {
+		user.HeaderImageURL = req.HeaderImageURL
+	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, apperror.Internal("failed to update profile")
