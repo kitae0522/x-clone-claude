@@ -2,7 +2,6 @@ package router
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/handler"
@@ -22,7 +21,6 @@ type Params struct {
 	FollowHandler   *handler.FollowHandler
 	BookmarkHandler *handler.BookmarkHandler
 	UserHandler     *handler.UserHandler
-	MediaHandler    *handler.MediaHandler
 	PollHandler     *handler.PollHandler
 	RepostHandler   *handler.RepostHandler
 }
@@ -71,11 +69,4 @@ func Setup(p Params) {
 	users.Get("/:handle/replies", middleware.OptionalAuth(jwtSecret), p.UserHandler.GetUserReplies)
 	users.Get("/:handle/likes", middleware.OptionalAuth(jwtSecret), p.UserHandler.GetUserLikes)
 	users.Get("/:handle", middleware.OptionalAuth(jwtSecret), p.UserHandler.GetProfile)
-
-	media := api.Group("/media")
-	media.Post("/upload", middleware.AuthRequired(jwtSecret), p.MediaHandler.Upload)
-
-	p.App.Static("/uploads", "./uploads", fiber.Static{
-		CacheDuration: 365 * 24 * time.Hour,
-	})
 }

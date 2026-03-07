@@ -19,6 +19,9 @@ backend/backend
 *.log
 claude_log/
 
+# Uploads (legacy - now using S3 via media-service)
+backend/uploads/
+
 # Environment
 .env
 .env.local
