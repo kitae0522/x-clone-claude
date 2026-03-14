@@ -1,11 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, User, LogOut, Feather } from "lucide-react";
+import { Home, User, LogOut, Feather, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuthContext";
 import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const navItems = [{ to: "/", icon: Home, label: "홈" }] as const;
+const navItems = [
+  { to: "/", icon: Home, label: "홈" },
+  { to: "/settings", icon: Settings, label: "설정" },
+];
 
 export default function Sidebar() {
   const { user, logout } = useAuth();

@@ -198,7 +198,21 @@
 - [ ] 코드 리뷰
 - [ ] PR 생성 및 이슈 연결
 
+## Phase 17: 비밀번호 변경 및 계정 탈퇴 (#56) (완료)
+- [x] DB 마이그레이션 (users.deleted_at 컬럼 + partial index)
+- [x] 백엔드 Model/DTO 수정 (ChangePasswordRequest, DeleteAccountRequest)
+- [x] Repository: UpdatePassword, SoftDelete + 기존 쿼리 deleted_at IS NULL 필터
+- [x] Service: ChangePassword (bcrypt 검증 + 해시), DeleteAccount (soft delete)
+- [x] Handler: ChangePassword (PUT /api/users/password), DeleteAccount (DELETE /api/users/account)
+- [x] Router 등록 (/:handle 위에 배치)
+- [x] Frontend useSettings hook (useChangePassword, useDeleteAccount)
+- [x] SettingsPage (비밀번호 변경 폼 + 계정 탈퇴 AlertDialog)
+- [x] App.tsx 라우팅 + Sidebar 설정 메뉴 추가
+- [x] 기존 테스트 mock 업데이트 + 전체 테스트 통과
+- [ ] PR 생성 및 이슈 연결
+
 ## 최근 변경 로그
+- 2026-03-14: 이슈 #56 비밀번호 변경 및 계정 탈퇴 - Settings 페이지, soft delete, bcrypt 검증
 - 2026-03-07: 이슈 #60 프로필 이미지 S3 전환 - media-service 경유 업로드 + 4종 리사이즈
 - 2026-03-07: 이슈 #53 액션 드롭다운 통합 - 팔로우 버튼 정리, 북마크/공유 드롭다운 편입
 - 2026-03-07: 이슈 #51 프로필 수정 모달 개선 - 파일 업로드, 버튼 겹침 수정

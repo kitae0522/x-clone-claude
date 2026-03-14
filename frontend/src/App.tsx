@@ -12,6 +12,7 @@ import PostDetailPage from "@/pages/PostDetailPage";
 import ComposePage from "@/pages/ComposePage";
 import EditPage from "@/pages/EditPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import SettingsPage from "@/pages/SettingsPage";
 import { Toaster } from "@/components/ui/sonner";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ function App() {
               <Route path="/compose/edit/:id" element={<EditPage />} />
               <Route path="/post/:id" element={<PostDetailPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/:handle" element={<ProfilePage />} />
             </Route>
           </Routes>
