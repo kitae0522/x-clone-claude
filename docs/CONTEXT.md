@@ -89,3 +89,11 @@
 - 하단 액션 바 간소화 (Reply/Repost/Like/ViewCount 4개로 집중)
 - ReplyCard에도 북마크/공유 접근 가능
 **트레이드오프**: 북마크/공유 접근성 1탭 → 2탭으로 증가, 하지만 핵심 인터랙션에 집중
+
+## 2026-03-16 — Handle 기반 쿼리 soft-deleted 사용자 필터링 (#80)
+**상황**: Phase 18에서 partial unique index로 username 재사용을 허용했으나, post_repository.go의 handle 기반 조회 쿼리가 soft-deleted 사용자도 매칭하여 이전 사용자 게시글이 신규 사용자 프로필에 노출됨
+**결정**: 8곳의 handle 기반 쿼리에 `deleted_at IS NULL` 조건 추가
+**이유**:
+- WHERE 절의 `u.username = $1`에 `AND u.deleted_at IS NULL` 추가하면 기존 `idx_users_username_active` partial index와 정확히 일치하여 성능 영향 없음
+- Service 레이어에서 별도 사용자 조회 없이 Repository 쿼리에서 직접 방어 (defense in depth)
+**트레이드오프**: 없음 (쿼리 수정만, API 인터페이스/DB 스키마 변경 없음)

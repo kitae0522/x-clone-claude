@@ -234,8 +234,10 @@
 - [x] #66 게시글 Soft Delete 전역 필터 적용 (이미 구현됨)
 - [x] #67 삭제된 게시글 접근 제어 + 휴지통 API
 - [x] #68 탈퇴 시 좋아요 Soft Delete 처리
+- [x] #80 탈퇴 후 동일 username 재가입 시 이전 사용자 게시글 노출 버그
 
 ## 최근 변경 로그
+- 2026-03-16: 이슈 #80 탈퇴 후 동일 username 재가입 시 게시글 노출 버그 — handle 기반 쿼리 8곳에 deleted_at IS NULL 조건 추가
 - 2026-03-16: 이슈 #68 탈퇴 시 좋아요 Soft Delete 처리 — likes.deleted_at, CTE 기반 like_count 감소, is_liked 필터 11곳
 - 2026-03-16: 이슈 #67 삭제된 게시글 접근 제어 + 휴지통 API — 410 Gone, 복원/영구삭제, TrashPage
 - 2026-03-14: 이슈 #64 탈퇴 계정 email/username 재사용 — Partial Unique Index 마이그레이션
