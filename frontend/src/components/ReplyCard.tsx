@@ -44,14 +44,14 @@ import { cn } from "@/lib/utils";
 interface ReplyCardProps {
   reply: PostDetail;
   parentPostId?: string;
-  opUsername?: string;
+  opAuthorId?: string;
   hasNextSibling?: boolean;
 }
 
 export default function ReplyCard({
   reply,
   parentPostId,
-  opUsername,
+  opAuthorId,
   hasNextSibling = false,
 }: ReplyCardProps) {
   const navigate = useNavigate();
@@ -62,8 +62,7 @@ export default function ReplyCard({
   const [showShareModal, setShowShareModal] = useState(false);
 
   const isOwner = currentUser?.username === reply.author.username;
-  const isParentAuthor =
-    opUsername != null && currentUser?.username === opUsername;
+  const isParentAuthor = opAuthorId != null && currentUser?.id === opAuthorId;
   const canDelete = isOwner || isParentAuthor;
   const isEdited = reply.updatedAt !== reply.createdAt;
   const deletePost = useDeletePost(reply.id);
@@ -71,7 +70,7 @@ export default function ReplyCard({
   const authorThread = reply.topReplies ?? [];
   const hasContinuation = authorThread.length > 0;
   const showLine = hasContinuation || hasNextSibling;
-  const isOP = opUsername != null && reply.author.username === opUsername;
+  const isOP = opAuthorId != null && reply.authorId === opAuthorId;
 
   function handleLikeClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -100,10 +99,14 @@ export default function ReplyCard({
       >
         <div className="flex flex-col items-center">
           <div
-            className="shrink-0 cursor-pointer"
+            className={cn(
+              "shrink-0",
+              !reply.author.isDeleted && "cursor-pointer",
+            )}
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/${reply.author.username}`);
+              if (!reply.author.isDeleted)
+                navigate(`/${reply.author.username}`);
             }}
           >
             <UserAvatar
@@ -116,30 +119,40 @@ export default function ReplyCard({
         </div>
         <div className="flex-1">
           <div className="mb-1 flex items-center gap-1.5">
-            <ProfileHoverCard
-              handle={reply.author.username}
-              currentUsername={currentUser?.username}
-            >
-              <span
-                className="cursor-pointer text-[14px] font-bold text-foreground hover:underline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/${reply.author.username}`);
-                }}
-              >
+            {reply.author.isDeleted ? (
+              <span className="text-[14px] font-bold text-muted-foreground">
                 {reply.author.displayName || reply.author.username}
               </span>
-            </ProfileHoverCard>
+            ) : (
+              <ProfileHoverCard
+                handle={reply.author.username}
+                currentUsername={currentUser?.username}
+              >
+                <span
+                  className="cursor-pointer text-[14px] font-bold text-foreground hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/${reply.author.username}`);
+                  }}
+                >
+                  {reply.author.displayName || reply.author.username}
+                </span>
+              </ProfileHoverCard>
+            )}
             {isOP && (
               <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
                 OP
               </span>
             )}
             <span
-              className="cursor-pointer text-[13px] text-muted-foreground hover:underline"
+              className={cn(
+                "text-[13px] text-muted-foreground",
+                !reply.author.isDeleted && "cursor-pointer hover:underline",
+              )}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/${reply.author.username}`);
+                if (!reply.author.isDeleted)
+                  navigate(`/${reply.author.username}`);
               }}
             >
               @{reply.author.username}
@@ -292,7 +305,7 @@ export default function ReplyCard({
           key={continuation.id}
           reply={continuation}
           parentPostId={reply.id}
-          opUsername={opUsername}
+          opAuthorId={opAuthorId}
           hasNextSibling={index < authorThread.length - 1}
         />
       ))}

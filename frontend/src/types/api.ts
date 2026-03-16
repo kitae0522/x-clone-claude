@@ -125,6 +125,7 @@ export interface PostAuthor {
   username: string;
   displayName: string;
   profileImageUrl: string;
+  isDeleted?: boolean;
 }
 
 export interface ParentPostSummary {

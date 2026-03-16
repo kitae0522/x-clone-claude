@@ -37,6 +37,7 @@ type PostWithAuthor struct {
 	AuthorUsername        string
 	AuthorDisplayName     string
 	AuthorProfileImageURL string
+	AuthorDeleted         bool
 	IsLiked               bool
 	IsBookmarked          bool
 	IsReposted            bool
