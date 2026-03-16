@@ -74,12 +74,13 @@ func (r *bookmarkRepository) IsBookmarked(ctx context.Context, userID, postID uu
 func (r *bookmarkRepository) ListByUserID(ctx context.Context, userID uuid.UUID, cursor time.Time, limit int) ([]model.PostWithAuthor, *time.Time, bool, error) {
 	query := `
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
-		       u.username, u.display_name, u.profile_image_url,
+		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
+		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
 		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $1 AND l.post_id = p.id) AS is_liked,
 		       b.created_at AS bookmark_created_at
 		FROM bookmarks b
 		JOIN posts p ON p.id = b.post_id
-		JOIN users u ON p.author_id = u.id
+		LEFT JOIN users u ON p.author_id = u.id
 		WHERE b.user_id = $1 AND b.created_at < $2
 		ORDER BY b.created_at DESC
 		LIMIT $3`
@@ -102,6 +103,7 @@ func (r *bookmarkRepository) ListByUserID(ctx context.Context, userID uuid.UUID,
 			&item.post.ID, &item.post.AuthorID, &item.post.ParentID, &item.post.Content, &visibility,
 			&item.post.LikeCount, &item.post.ReplyCount, &item.post.CreatedAt, &item.post.UpdatedAt,
 			&item.post.AuthorUsername, &item.post.AuthorDisplayName, &item.post.AuthorProfileImageURL,
+			&item.post.AuthorDeleted,
 			&item.post.IsLiked,
 			&item.bookmarkCreatedAt,
 		); err != nil {

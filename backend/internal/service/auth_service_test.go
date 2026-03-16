@@ -82,6 +82,22 @@ func (m *mockUserRepo) ExistsByUsername(_ context.Context, username string) (boo
 	return m.nameExists[username], nil
 }
 
+func (m *mockUserRepo) UpdatePassword(_ context.Context, id uuid.UUID, passwordHash string) error {
+	if u, ok := m.usersByID[id]; ok {
+		u.PasswordHash = passwordHash
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
+func (m *mockUserRepo) SoftDelete(_ context.Context, id uuid.UUID) error {
+	if _, ok := m.usersByID[id]; ok {
+		delete(m.usersByID, id)
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
 func TestRegister_Success(t *testing.T) {
 	repo := newMockUserRepo()
 	svc := NewAuthService(repo, testConfig())

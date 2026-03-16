@@ -55,14 +55,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	c.Cookie(&fiber.Cookie{
-		Name:     "token",
-		Value:    "",
-		Expires:  time.Now().Add(-1 * time.Hour),
-		HTTPOnly: true,
-		SameSite: "Lax",
-		Path:     "/",
-	})
+	clearTokenCookie(c)
 
 	return c.JSON(dto.APIResponse{
 		Success: true,
@@ -89,6 +82,17 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	return c.JSON(dto.APIResponse{
 		Success: true,
 		Data:    user,
+	})
+}
+
+func clearTokenCookie(c *fiber.Ctx) {
+	c.Cookie(&fiber.Cookie{
+		Name:     "token",
+		Value:    "",
+		Expires:  time.Now().Add(-1 * time.Hour),
+		HTTPOnly: true,
+		SameSite: "Lax",
+		Path:     "/",
 	})
 }
 

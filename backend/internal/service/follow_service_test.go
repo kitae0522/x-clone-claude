@@ -164,6 +164,22 @@ func (m *mockUserRepoForFollow) ExistsByUsername(_ context.Context, username str
 	return m.nameExists[username], nil
 }
 
+func (m *mockUserRepoForFollow) UpdatePassword(_ context.Context, id uuid.UUID, passwordHash string) error {
+	if u, ok := m.usersByID[id]; ok {
+		u.PasswordHash = passwordHash
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
+func (m *mockUserRepoForFollow) SoftDelete(_ context.Context, id uuid.UUID) error {
+	if _, ok := m.usersByID[id]; ok {
+		delete(m.usersByID, id)
+		return nil
+	}
+	return pgx.ErrNoRows
+}
+
 func setupFollowTest() (*followService, *mockFollowRepo, *mockUserRepoForFollow, *model.User, *model.User) {
 	userRepo := newMockUserRepoForFollow()
 	followRepo := newMockFollowRepo()

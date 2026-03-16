@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/google/uuid"
@@ -9,11 +10,14 @@ import (
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/dto"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	GetProfile(ctx context.Context, username string, viewerID *uuid.UUID) (*dto.ProfileResponse, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) (*dto.UserResponse, error)
+	ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error
+	DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error
 }
 
 type userService struct {
@@ -28,7 +32,7 @@ func NewUserService(userRepo repository.UserRepository, followRepo repository.Fo
 func (s *userService) GetProfile(ctx context.Context, username string, viewerID *uuid.UUID) (*dto.ProfileResponse, error) {
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.NotFound("user not found")
 		}
 		return nil, apperror.Internal("failed to find user")
@@ -59,7 +63,7 @@ func (s *userService) GetProfile(ctx context.Context, username string, viewerID 
 func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) (*dto.UserResponse, error) {
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.NotFound("user not found")
 		}
 		return nil, apperror.Internal("failed to find user")
@@ -99,6 +103,55 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 
 	resp := dto.ToUserResponse(user)
 	return &resp, nil
+}
+
+func (s *userService) ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apperror.NotFound("user not found")
+		}
+		return apperror.Internal("failed to find user")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return apperror.Unauthorized("password is incorrect")
+	}
+
+	if req.CurrentPassword == req.NewPassword {
+		return apperror.BadRequest("new password must be different from current password")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return apperror.Internal("failed to hash password")
+	}
+
+	if err := s.userRepo.UpdatePassword(ctx, userID, string(hashed)); err != nil {
+		return apperror.Internal("failed to update password")
+	}
+
+	return nil
+}
+
+func (s *userService) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apperror.NotFound("user not found")
+		}
+		return apperror.Internal("failed to find user")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		return apperror.Unauthorized("password is incorrect")
+	}
+
+	if err := s.userRepo.SoftDelete(ctx, userID); err != nil {
+		return apperror.Internal("failed to delete account")
+	}
+
+	return nil
 }
 
 func isAllowedImageURL(url string) bool {

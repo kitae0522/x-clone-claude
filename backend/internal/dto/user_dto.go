@@ -2,6 +2,15 @@ package dto
 
 import "github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" validate:"required"`
+	NewPassword     string `json:"newPassword"     validate:"required,min=8,max=128"`
+}
+
+type DeleteAccountRequest struct {
+	Password string `json:"password" validate:"required"`
+}
+
 type UpdateProfileRequest struct {
 	DisplayName     string `json:"displayName"     validate:"omitempty,max=50"`
 	Bio             string `json:"bio"             validate:"omitempty,max=160"`

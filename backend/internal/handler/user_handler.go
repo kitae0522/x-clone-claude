@@ -94,6 +94,60 @@ func (h *UserHandler) GetUserLikes(c *fiber.Ctx) error {
 	})
 }
 
+func (h *UserHandler) ChangePassword(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	var req dto.ChangePasswordRequest
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
+	}
+
+	if err := h.userService.ChangePassword(c.Context(), userID, req); err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    nil,
+	})
+}
+
+func (h *UserHandler) DeleteAccount(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	var req dto.DeleteAccountRequest
+	if err := parseAndValidate(c, &req); err != nil {
+		return err
+	}
+
+	if err := h.userService.DeleteAccount(c.Context(), userID, req); err != nil {
+		return respondError(c, err)
+	}
+
+	clearTokenCookie(c)
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    nil,
+	})
+}
+
 func (h *UserHandler) UpdateProfile(c *fiber.Ctx) error {
 	userIDStr, ok := c.Locals("userID").(string)
 	if !ok {

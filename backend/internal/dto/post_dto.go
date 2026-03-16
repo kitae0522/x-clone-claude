@@ -50,6 +50,7 @@ type PostAuthor struct {
 	Username        string `json:"username"`
 	DisplayName     string `json:"displayName"`
 	ProfileImageURL string `json:"profileImageUrl"`
+	IsDeleted       bool   `json:"isDeleted,omitempty"`
 }
 
 type PostResponse struct {
@@ -135,17 +136,26 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		parentID = &s
 	}
 
+	author := PostAuthor{
+		Username:        p.AuthorUsername,
+		DisplayName:     p.AuthorDisplayName,
+		ProfileImageURL: p.AuthorProfileImageURL,
+	}
+	if p.AuthorDeleted {
+		author = PostAuthor{
+			Username:    "deleted",
+			DisplayName: "탈퇴한 사용자",
+			IsDeleted:   true,
+		}
+	}
+
 	resp := PostDetailResponse{
-		ID:         p.ID.String(),
-		AuthorID:   p.AuthorID.String(),
-		ParentID:   parentID,
-		Content:    p.Content,
-		Visibility: string(p.Visibility),
-		Author: PostAuthor{
-			Username:        p.AuthorUsername,
-			DisplayName:     p.AuthorDisplayName,
-			ProfileImageURL: p.AuthorProfileImageURL,
-		},
+		ID:           p.ID.String(),
+		AuthorID:     p.AuthorID.String(),
+		ParentID:     parentID,
+		Content:      p.Content,
+		Visibility:   string(p.Visibility),
+		Author:       author,
 		LikeCount:    p.LikeCount,
 		ReplyCount:   p.ReplyCount,
 		ViewCount:    p.ViewCount,
@@ -175,15 +185,23 @@ func ToPostDetailResponse(p model.PostWithAuthor) PostDetailResponse {
 		resp.Location = loc
 	}
 
-	if p.ParentPostID != nil && p.ParentContent != nil && p.ParentAuthorUsername != nil {
+	if p.ParentPostID != nil && p.ParentContent != nil {
+		parentAuthor := PostAuthor{
+			Username:        derefStr(p.ParentAuthorUsername),
+			DisplayName:     derefStr(p.ParentAuthorDisplayName),
+			ProfileImageURL: derefStr(p.ParentAuthorProfileImageURL),
+		}
+		if p.ParentAuthorUsername == nil || *p.ParentAuthorUsername == "" {
+			parentAuthor = PostAuthor{
+				Username:    "deleted",
+				DisplayName: "탈퇴한 사용자",
+				IsDeleted:   true,
+			}
+		}
 		resp.Parent = &ParentPostSummary{
 			ID:      p.ParentPostID.String(),
 			Content: *p.ParentContent,
-			Author: PostAuthor{
-				Username:        *p.ParentAuthorUsername,
-				DisplayName:     derefStr(p.ParentAuthorDisplayName),
-				ProfileImageURL: derefStr(p.ParentAuthorProfileImageURL),
-			},
+			Author:  parentAuthor,
 		}
 	}
 

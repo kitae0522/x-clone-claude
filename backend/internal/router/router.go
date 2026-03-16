@@ -60,6 +60,8 @@ func Setup(p Params) {
 
 	users := api.Group("/users")
 	users.Get("/bookmarks", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.ListBookmarks)
+	users.Put("/password", middleware.AuthRequired(jwtSecret), p.UserHandler.ChangePassword)
+	users.Delete("/account", middleware.AuthRequired(jwtSecret), p.UserHandler.DeleteAccount)
 	users.Put("/profile", middleware.AuthRequired(jwtSecret), p.UserHandler.UpdateProfile)
 	users.Post("/:handle/follow", middleware.AuthRequired(jwtSecret), p.FollowHandler.Follow)
 	users.Delete("/:handle/follow", middleware.AuthRequired(jwtSecret), p.FollowHandler.Unfollow)

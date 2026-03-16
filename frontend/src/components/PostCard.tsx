@@ -109,10 +109,13 @@ function PostCard({ post }: PostCardProps) {
       )}
       <div className="flex gap-3">
         <div
-          className="mt-0.5 shrink-0 cursor-pointer"
+          className={cn(
+            "mt-0.5 shrink-0",
+            !post.author.isDeleted && "cursor-pointer",
+          )}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/${post.author.username}`);
+            if (!post.author.isDeleted) navigate(`/${post.author.username}`);
           }}
         >
           <UserAvatar
@@ -125,25 +128,35 @@ function PostCard({ post }: PostCardProps) {
           {/* Author Row */}
           <div className="flex items-center justify-between">
             <div className="flex min-w-0 items-center gap-1">
-              <ProfileHoverCard
-                handle={post.author.username}
-                currentUsername={currentUser?.username}
-              >
-                <span
-                  className="cursor-pointer truncate text-[15px] font-bold text-foreground hover:underline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/${post.author.username}`);
-                  }}
-                >
+              {post.author.isDeleted ? (
+                <span className="truncate text-[15px] font-bold text-muted-foreground">
                   {post.author.displayName || post.author.username}
                 </span>
-              </ProfileHoverCard>
+              ) : (
+                <ProfileHoverCard
+                  handle={post.author.username}
+                  currentUsername={currentUser?.username}
+                >
+                  <span
+                    className="cursor-pointer truncate text-[15px] font-bold text-foreground hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/${post.author.username}`);
+                    }}
+                  >
+                    {post.author.displayName || post.author.username}
+                  </span>
+                </ProfileHoverCard>
+              )}
               <span
-                className="cursor-pointer text-[15px] text-muted-foreground hover:underline"
+                className={cn(
+                  "text-[15px] text-muted-foreground",
+                  !post.author.isDeleted && "cursor-pointer hover:underline",
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/${post.author.username}`);
+                  if (!post.author.isDeleted)
+                    navigate(`/${post.author.username}`);
                 }}
               >
                 @{post.author.username}
@@ -231,7 +244,13 @@ function PostCard({ post }: PostCardProps) {
             >
               <span>
                 <span className="text-muted-foreground">replying to </span>
-                <span className="cursor-pointer text-primary hover:underline">
+                <span
+                  className={cn(
+                    post.parent.author.isDeleted
+                      ? "text-muted-foreground"
+                      : "cursor-pointer text-primary hover:underline",
+                  )}
+                >
                   @{post.parent.author.username}
                 </span>
               </span>
