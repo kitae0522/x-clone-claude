@@ -3,6 +3,7 @@ import type { PostDetail } from "@/types/api";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import MediaGrid from "@/components/MediaGrid";
 import PollDisplay from "@/components/PollDisplay";
+import { cn } from "@/lib/utils";
 
 interface ParentPostCardProps {
   post: PostDetail;
@@ -18,20 +19,43 @@ export default function ParentPostCard({ post }: ParentPostCardProps) {
     >
       <div className="flex gap-3">
         <div className="flex flex-col items-center">
-          {post.author.profileImageUrl ? (
-            <img
-              src={post.author.profileImageUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-border" />
-          )}
+          <div
+            className={cn(
+              "shrink-0",
+              !post.author.isDeleted && "cursor-pointer",
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!post.author.isDeleted) navigate(`/${post.author.username}`);
+            }}
+          >
+            {post.author.profileImageUrl ? (
+              <img
+                src={post.author.profileImageUrl}
+                alt=""
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-border" />
+            )}
+          </div>
           <div className="mt-1 w-0.5 flex-1 bg-border" />
         </div>
         <div className="flex-1 pb-2">
           <div className="mb-0.5 flex items-center gap-1.5">
-            <span className="text-[14px] font-bold text-foreground">
+            <span
+              className={cn(
+                "text-[14px] font-bold",
+                post.author.isDeleted
+                  ? "text-muted-foreground"
+                  : "text-foreground cursor-pointer hover:underline",
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!post.author.isDeleted)
+                  navigate(`/${post.author.username}`);
+              }}
+            >
               {post.author.displayName || post.author.username}
             </span>
             <span className="text-[13px] text-muted-foreground">

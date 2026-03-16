@@ -119,8 +119,13 @@ export default function PostDetailPage() {
       <article className="p-4">
         <div className="mb-4 flex items-center gap-3">
           <div
-            className="shrink-0 cursor-pointer"
-            onClick={() => navigate(`/${post.author.username}`)}
+            className={cn(
+              "shrink-0",
+              !post.author.isDeleted && "cursor-pointer",
+            )}
+            onClick={() => {
+              if (!post.author.isDeleted) navigate(`/${post.author.username}`);
+            }}
           >
             <UserAvatar
               profileImageUrl={post.author.profileImageUrl}
@@ -129,25 +134,35 @@ export default function PostDetailPage() {
             />
           </div>
           <div className="flex flex-1 flex-col">
-            <ProfileHoverCard
-              handle={post.author.username}
-              currentUsername={currentUser?.username}
-            >
-              <span
-                className="cursor-pointer text-[15px] font-bold text-foreground hover:underline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/${post.author.username}`);
-                }}
-              >
+            {post.author.isDeleted ? (
+              <span className="text-[15px] font-bold text-muted-foreground">
                 {post.author.displayName || post.author.username}
               </span>
-            </ProfileHoverCard>
+            ) : (
+              <ProfileHoverCard
+                handle={post.author.username}
+                currentUsername={currentUser?.username}
+              >
+                <span
+                  className="cursor-pointer text-[15px] font-bold text-foreground hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/${post.author.username}`);
+                  }}
+                >
+                  {post.author.displayName || post.author.username}
+                </span>
+              </ProfileHoverCard>
+            )}
             <span
-              className="cursor-pointer text-sm text-muted-foreground hover:underline"
+              className={cn(
+                "text-sm text-muted-foreground",
+                !post.author.isDeleted && "cursor-pointer hover:underline",
+              )}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/${post.author.username}`);
+                if (!post.author.isDeleted)
+                  navigate(`/${post.author.username}`);
               }}
             >
               @{post.author.username}
@@ -367,7 +382,7 @@ export default function PostDetailPage() {
             key={reply.id}
             reply={reply}
             parentPostId={postId}
-            opUsername={post.author.username}
+            opAuthorId={post.authorId}
           />
         ))}
         {(!post.topReplies || post.topReplies.length === 0) && (
