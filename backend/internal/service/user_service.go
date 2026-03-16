@@ -23,10 +23,11 @@ type UserService interface {
 type userService struct {
 	userRepo   repository.UserRepository
 	followRepo repository.FollowRepository
+	likeRepo   repository.LikeRepository
 }
 
-func NewUserService(userRepo repository.UserRepository, followRepo repository.FollowRepository) UserService {
-	return &userService{userRepo: userRepo, followRepo: followRepo}
+func NewUserService(userRepo repository.UserRepository, followRepo repository.FollowRepository, likeRepo repository.LikeRepository) UserService {
+	return &userService{userRepo: userRepo, followRepo: followRepo, likeRepo: likeRepo}
 }
 
 func (s *userService) GetProfile(ctx context.Context, username string, viewerID *uuid.UUID) (*dto.ProfileResponse, error) {
@@ -145,6 +146,10 @@ func (s *userService) DeleteAccount(ctx context.Context, userID uuid.UUID, req d
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return apperror.Unauthorized("password is incorrect")
+	}
+
+	if _, err := s.likeRepo.SoftDeleteByUserID(ctx, userID); err != nil {
+		return apperror.Internal("failed to soft delete likes")
 	}
 
 	if err := s.userRepo.SoftDelete(ctx, userID); err != nil {

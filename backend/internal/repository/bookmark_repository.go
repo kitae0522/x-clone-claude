@@ -76,7 +76,7 @@ func (r *bookmarkRepository) ListByUserID(ctx context.Context, userID uuid.UUID,
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $1 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $1 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       b.created_at AS bookmark_created_at
 		FROM bookmarks b
 		JOIN posts p ON p.id = b.post_id

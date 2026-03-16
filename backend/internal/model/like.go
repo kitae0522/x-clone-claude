@@ -10,4 +10,5 @@ type Like struct {
 	UserID    uuid.UUID
 	PostID    uuid.UUID
 	CreatedAt time.Time
+	DeletedAt *time.Time
 }

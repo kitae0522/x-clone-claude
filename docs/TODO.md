@@ -233,9 +233,10 @@
 - [ ] #65 탈퇴 사용자 게시글 작성자 익명 처리
 - [x] #66 게시글 Soft Delete 전역 필터 적용 (이미 구현됨)
 - [x] #67 삭제된 게시글 접근 제어 + 휴지통 API
-- [ ] #68 탈퇴 시 좋아요 Soft Delete 처리
+- [x] #68 탈퇴 시 좋아요 Soft Delete 처리
 
 ## 최근 변경 로그
+- 2026-03-16: 이슈 #68 탈퇴 시 좋아요 Soft Delete 처리 — likes.deleted_at, CTE 기반 like_count 감소, is_liked 필터 11곳
 - 2026-03-16: 이슈 #67 삭제된 게시글 접근 제어 + 휴지통 API — 410 Gone, 복원/영구삭제, TrashPage
 - 2026-03-14: 이슈 #64 탈퇴 계정 email/username 재사용 — Partial Unique Index 마이그레이션
 - 2026-03-14: 이슈 #56 비밀번호 변경 및 계정 탈퇴 - Settings 페이지, soft delete, bcrypt 검증

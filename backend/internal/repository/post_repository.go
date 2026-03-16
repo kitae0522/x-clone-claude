@@ -158,7 +158,7 @@ func (r *postRepository) FindByIDWithUser(ctx context.Context, id, userID uuid.U
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $2 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $2 AND b.post_id = p.id) AS is_bookmarked,
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $2 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
@@ -198,7 +198,7 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		           COALESCE(u.username, '') AS username, COALESCE(u.display_name, '') AS display_name, COALESCE(u.profile_image_url, '') AS profile_image_url,
 		           (u.deleted_at IS NOT NULL OR u.id IS NULL) AS author_deleted,
-		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
 		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		           p.location_lat, p.location_lng, p.location_name,
@@ -222,7 +222,7 @@ func (r *postRepository) FindAllWithUser(ctx context.Context, limit, offset int,
 		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		           COALESCE(u.username, '') AS username, COALESCE(u.display_name, '') AS display_name, COALESCE(u.profile_image_url, '') AS profile_image_url,
 		           (u.deleted_at IS NOT NULL OR u.id IS NULL) AS author_deleted,
-		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
 		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		           p.location_lat, p.location_lng, p.location_name,
@@ -375,7 +375,7 @@ func (r *postRepository) FindAuthorReplyByPostIDWithUser(ctx context.Context, po
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
@@ -406,7 +406,7 @@ func (r *postRepository) FindRepliesByPostIDWithUser(ctx context.Context, postID
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $3 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $3 AND b.post_id = p.id) AS is_bookmarked,
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $3 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
@@ -559,7 +559,7 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		           COALESCE(u.username, '') AS username, COALESCE(u.display_name, '') AS display_name, COALESCE(u.profile_image_url, '') AS profile_image_url,
 		           (u.deleted_at IS NOT NULL OR u.id IS NULL) AS author_deleted,
-		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
 		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		           p.location_lat, p.location_lng, p.location_name,
@@ -582,7 +582,7 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		    SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		           COALESCE(u.username, '') AS username, COALESCE(u.display_name, '') AS display_name, COALESCE(u.profile_image_url, '') AS profile_image_url,
 		           (u.deleted_at IS NOT NULL OR u.id IS NULL) AS author_deleted,
-		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		           EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		           EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
 		           EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		           p.location_lat, p.location_lng, p.location_name,
@@ -691,7 +691,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name,
@@ -730,7 +730,7 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 		JOIN users target ON target.username = $1
 		JOIN posts p ON p.id = lk.post_id
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE lk.user_id = target.id
+		WHERE lk.user_id = target.id AND lk.deleted_at IS NULL
 		  AND p.visibility = 'public' AND p.deleted_at IS NULL
 		ORDER BY lk.created_at DESC
 		LIMIT $2 OFFSET $3`
@@ -747,7 +747,7 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at,
 		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
-		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id) AS is_liked,
+		       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = $4 AND l.post_id = p.id AND l.deleted_at IS NULL) AS is_liked,
 		       EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = $4 AND b.post_id = p.id) AS is_bookmarked,
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
@@ -755,7 +755,7 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		JOIN users target ON target.username = $1
 		JOIN posts p ON p.id = lk.post_id
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE lk.user_id = target.id AND p.deleted_at IS NULL
+		WHERE lk.user_id = target.id AND lk.deleted_at IS NULL AND p.deleted_at IS NULL
 		  AND (
 		    p.visibility = 'public'
 		    OR (p.visibility = 'follower' AND (
