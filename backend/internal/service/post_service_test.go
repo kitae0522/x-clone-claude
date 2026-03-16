@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,13 @@ import (
 
 type mockPostRepo struct {
 	posts map[uuid.UUID]*model.PostWithAuthor
+
+	existsIncludingDeletedFn    func(ctx context.Context, id uuid.UUID) (bool, bool, error)
+	findByIDIncludingDeletedFn  func(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error)
+	findDeletedByAuthorFn       func(ctx context.Context, userID uuid.UUID, limit int, cursor *time.Time) ([]model.PostWithAuthor, error)
+	restoreFn                   func(ctx context.Context, id uuid.UUID) error
+	restoreReplyFn              func(ctx context.Context, id, parentID uuid.UUID) error
+	hardDeleteFn                func(ctx context.Context, id uuid.UUID) error
 }
 
 func newMockPostRepo() *mockPostRepo {
@@ -160,6 +168,48 @@ func (m *mockPostRepo) SoftDeleteReply(_ context.Context, id uuid.UUID, parentID
 		return nil
 	}
 	return pgx.ErrNoRows
+}
+
+func (m *mockPostRepo) ExistsIncludingDeleted(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+	if m.existsIncludingDeletedFn != nil {
+		return m.existsIncludingDeletedFn(ctx, id)
+	}
+	return false, false, nil
+}
+
+func (m *mockPostRepo) FindByIDIncludingDeleted(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error) {
+	if m.findByIDIncludingDeletedFn != nil {
+		return m.findByIDIncludingDeletedFn(ctx, id)
+	}
+	return nil, pgx.ErrNoRows
+}
+
+func (m *mockPostRepo) FindDeletedByAuthor(ctx context.Context, userID uuid.UUID, limit int, cursor *time.Time) ([]model.PostWithAuthor, error) {
+	if m.findDeletedByAuthorFn != nil {
+		return m.findDeletedByAuthorFn(ctx, userID, limit, cursor)
+	}
+	return nil, nil
+}
+
+func (m *mockPostRepo) Restore(ctx context.Context, id uuid.UUID) error {
+	if m.restoreFn != nil {
+		return m.restoreFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockPostRepo) RestoreReply(ctx context.Context, id, parentID uuid.UUID) error {
+	if m.restoreReplyFn != nil {
+		return m.restoreReplyFn(ctx, id, parentID)
+	}
+	return nil
+}
+
+func (m *mockPostRepo) HardDelete(ctx context.Context, id uuid.UUID) error {
+	if m.hardDeleteFn != nil {
+		return m.hardDeleteFn(ctx, id)
+	}
+	return nil
 }
 
 type mockPollRepo struct{}
@@ -693,6 +743,480 @@ func TestGetPostByID_VisibilityAccess(t *testing.T) {
 				}
 				if resp.Content != "test post" {
 					t.Errorf("expected content 'test post', got %s", resp.Content)
+				}
+			}
+		})
+	}
+}
+
+func TestGetPostByID_Deleted(t *testing.T) {
+	tests := []struct {
+		name             string
+		existsInDeleted  bool
+		isDeleted        bool
+		wantCode         int
+		wantMessage      string
+	}{
+		{
+			name:            "deleted post returns 410 Gone",
+			existsInDeleted: true,
+			isDeleted:       true,
+			wantCode:        410,
+			wantMessage:     "this post has been deleted",
+		},
+		{
+			name:            "non-existent post returns 404",
+			existsInDeleted: false,
+			isDeleted:       false,
+			wantCode:        404,
+			wantMessage:     "post not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			repo.existsIncludingDeletedFn = func(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+				return tt.existsInDeleted, tt.isDeleted, nil
+			}
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
+
+			_, err := svc.GetPostByID(context.Background(), uuid.New(), nil)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			appErr, ok := err.(*apperror.AppError)
+			if !ok {
+				t.Fatalf("expected AppError, got %T", err)
+			}
+			if appErr.Code != tt.wantCode {
+				t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+			}
+			if appErr.Message != tt.wantMessage {
+				t.Errorf("expected message %q, got %q", tt.wantMessage, appErr.Message)
+			}
+		})
+	}
+}
+
+func TestListTrash(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+	deletedAt := now.Add(-2 * 24 * time.Hour)
+
+	makePost := func(id uuid.UUID) model.PostWithAuthor {
+		return model.PostWithAuthor{
+			Post: model.Post{
+				ID:         id,
+				AuthorID:   userID,
+				Content:    "deleted post",
+				Visibility: model.VisibilityPublic,
+				DeletedAt:  &deletedAt,
+				CreatedAt:  now.Add(-5 * 24 * time.Hour),
+			},
+			AuthorUsername:    "testuser",
+			AuthorDisplayName: "Test User",
+		}
+	}
+
+	tests := []struct {
+		name       string
+		limit      int
+		posts      []model.PostWithAuthor
+		wantCount  int
+		wantMore   bool
+		wantCursor bool
+	}{
+		{
+			name:       "empty trash",
+			limit:      20,
+			posts:      nil,
+			wantCount:  0,
+			wantMore:   false,
+			wantCursor: false,
+		},
+		{
+			name:  "trash with posts within limit",
+			limit: 20,
+			posts: []model.PostWithAuthor{
+				makePost(uuid.New()),
+				makePost(uuid.New()),
+			},
+			wantCount:  2,
+			wantMore:   false,
+			wantCursor: false,
+		},
+		{
+			name:  "trash with pagination (hasMore)",
+			limit: 2,
+			posts: func() []model.PostWithAuthor {
+				// Return limit+1 posts to trigger hasMore
+				return []model.PostWithAuthor{
+					makePost(uuid.New()),
+					makePost(uuid.New()),
+					makePost(uuid.New()),
+				}
+			}(),
+			wantCount:  2,
+			wantMore:   true,
+			wantCursor: true,
+		},
+		{
+			name:  "invalid limit defaults to 20",
+			limit: 0,
+			posts: nil,
+			wantCount:  0,
+			wantMore:   false,
+			wantCursor: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			repo.findDeletedByAuthorFn = func(_ context.Context, _ uuid.UUID, _ int, _ *time.Time) ([]model.PostWithAuthor, error) {
+				return tt.posts, nil
+			}
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
+
+			resp, err := svc.ListTrash(context.Background(), userID, tt.limit, nil)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if len(resp.Posts) != tt.wantCount {
+				t.Errorf("expected %d posts, got %d", tt.wantCount, len(resp.Posts))
+			}
+			if resp.HasMore != tt.wantMore {
+				t.Errorf("expected hasMore=%v, got %v", tt.wantMore, resp.HasMore)
+			}
+			if tt.wantCursor && resp.NextCursor == nil {
+				t.Error("expected nextCursor to be set, got nil")
+			}
+			if !tt.wantCursor && resp.NextCursor != nil {
+				t.Errorf("expected nextCursor to be nil, got %v", *resp.NextCursor)
+			}
+		})
+	}
+}
+
+func TestRestorePost(t *testing.T) {
+	ownerID := uuid.New()
+	otherID := uuid.New()
+	postID := uuid.New()
+	parentID := uuid.New()
+	now := time.Now()
+	recentDelete := now.Add(-5 * 24 * time.Hour)
+	expiredDelete := now.Add(-31 * 24 * time.Hour)
+
+	tests := []struct {
+		name              string
+		findIncludingDel  func(context.Context, uuid.UUID) (*model.PostWithAuthor, error)
+		existsIncludingDel func(context.Context, uuid.UUID) (bool, bool, error)
+		findByID          *model.PostWithAuthor
+		requesterID       uuid.UUID
+		wantErr           bool
+		wantCode          int
+		wantMessage       string
+	}{
+		{
+			name: "success - restore top-level post",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:         postID,
+						AuthorID:   ownerID,
+						Content:    "restored post",
+						Visibility: model.VisibilityPublic,
+						DeletedAt:  &recentDelete,
+					},
+					AuthorUsername:    "testuser",
+					AuthorDisplayName: "Test User",
+				}, nil
+			},
+			findByID: &model.PostWithAuthor{
+				Post: model.Post{
+					ID:         postID,
+					AuthorID:   ownerID,
+					Content:    "restored post",
+					Visibility: model.VisibilityPublic,
+				},
+				AuthorUsername:    "testuser",
+				AuthorDisplayName: "Test User",
+			},
+			requesterID: ownerID,
+			wantErr:     false,
+		},
+		{
+			name: "post not found",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return nil, pgx.ErrNoRows
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    404,
+			wantMessage: "post not found",
+		},
+		{
+			name: "post is not deleted",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: nil,
+					},
+				}, nil
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    400,
+			wantMessage: "post is not deleted",
+		},
+		{
+			name: "not owner",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: &recentDelete,
+					},
+				}, nil
+			},
+			requesterID: otherID,
+			wantErr:     true,
+			wantCode:    403,
+			wantMessage: "you can only restore your own post",
+		},
+		{
+			name: "expired - past 30 days",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: &expiredDelete,
+					},
+				}, nil
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    400,
+			wantMessage: "post cannot be restored after 30 days",
+		},
+		{
+			name: "reply with deleted parent",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						ParentID:  &parentID,
+						DeletedAt: &recentDelete,
+					},
+				}, nil
+			},
+			existsIncludingDel: func(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+				return true, true, nil // parent exists but is deleted
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    400,
+			wantMessage: "cannot restore reply: parent post is deleted",
+		},
+		{
+			name: "reply with missing parent",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						ParentID:  &parentID,
+						DeletedAt: &recentDelete,
+					},
+				}, nil
+			},
+			existsIncludingDel: func(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+				return false, false, nil // parent does not exist
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    400,
+			wantMessage: "cannot restore reply: parent post is deleted",
+		},
+		{
+			name: "success - restore reply with live parent",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						ParentID:  &parentID,
+						DeletedAt: &recentDelete,
+					},
+					AuthorUsername:    "testuser",
+					AuthorDisplayName: "Test User",
+				}, nil
+			},
+			existsIncludingDel: func(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+				return true, false, nil // parent exists and is NOT deleted
+			},
+			findByID: &model.PostWithAuthor{
+				Post: model.Post{
+					ID:       postID,
+					AuthorID: ownerID,
+					ParentID: &parentID,
+					Content:  "restored reply",
+				},
+				AuthorUsername:    "testuser",
+				AuthorDisplayName: "Test User",
+			},
+			requesterID: ownerID,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			repo.findByIDIncludingDeletedFn = tt.findIncludingDel
+			if tt.existsIncludingDel != nil {
+				repo.existsIncludingDeletedFn = tt.existsIncludingDel
+			}
+			// If we expect success, set up FindByID to return the restored post
+			if tt.findByID != nil {
+				repo.posts[postID] = tt.findByID
+			}
+
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
+
+			resp, err := svc.RestorePost(context.Background(), postID, tt.requesterID)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				appErr, ok := err.(*apperror.AppError)
+				if !ok {
+					t.Fatalf("expected AppError, got %T", err)
+				}
+				if appErr.Code != tt.wantCode {
+					t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+				}
+				if appErr.Message != tt.wantMessage {
+					t.Errorf("expected message %q, got %q", tt.wantMessage, appErr.Message)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				if resp == nil {
+					t.Fatal("expected response, got nil")
+				}
+			}
+		})
+	}
+}
+
+func TestPermanentDeletePost(t *testing.T) {
+	ownerID := uuid.New()
+	otherID := uuid.New()
+	postID := uuid.New()
+	now := time.Now()
+	deletedAt := now.Add(-2 * 24 * time.Hour)
+
+	tests := []struct {
+		name             string
+		findIncludingDel func(context.Context, uuid.UUID) (*model.PostWithAuthor, error)
+		requesterID      uuid.UUID
+		wantErr          bool
+		wantCode         int
+		wantMessage      string
+	}{
+		{
+			name: "success",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: &deletedAt,
+					},
+				}, nil
+			},
+			requesterID: ownerID,
+			wantErr:     false,
+		},
+		{
+			name: "post not found",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return nil, pgx.ErrNoRows
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    404,
+			wantMessage: "post not found",
+		},
+		{
+			name: "post not in trash",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: nil,
+					},
+				}, nil
+			},
+			requesterID: ownerID,
+			wantErr:     true,
+			wantCode:    400,
+			wantMessage: "post is not in trash",
+		},
+		{
+			name: "not owner",
+			findIncludingDel: func(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+				return &model.PostWithAuthor{
+					Post: model.Post{
+						ID:        postID,
+						AuthorID:  ownerID,
+						DeletedAt: &deletedAt,
+					},
+				}, nil
+			},
+			requesterID: otherID,
+			wantErr:     true,
+			wantCode:    403,
+			wantMessage: "you can only permanently delete your own post",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newMockPostRepo()
+			repo.findByIDIncludingDeletedFn = tt.findIncludingDel
+
+			svc := NewPostService(repo, newMockPollRepo(), nil, nil, nil)
+
+			err := svc.PermanentDeletePost(context.Background(), postID, tt.requesterID)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				appErr, ok := err.(*apperror.AppError)
+				if !ok {
+					t.Fatalf("expected AppError, got %T", err)
+				}
+				if appErr.Code != tt.wantCode {
+					t.Errorf("expected code %d, got %d", tt.wantCode, appErr.Code)
+				}
+				if appErr.Message != tt.wantMessage {
+					t.Errorf("expected message %q, got %q", tt.wantMessage, appErr.Message)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
 				}
 			}
 		})

@@ -72,7 +72,24 @@ export default function PostDetailPage() {
       </div>
     );
   if (error) {
-    console.error("PostDetailPage error:", error);
+    const isDeleted = error.message.includes("410");
+    if (isDeleted) {
+      return (
+        <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+          <Trash2 className="mb-4 h-12 w-12 text-muted-foreground" />
+          <h2 className="mb-2 text-lg font-bold">이 게시글은 삭제되었습니다</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            작성자가 이 게시글을 삭제했습니다.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="cursor-pointer rounded-full bg-primary px-6 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 border-none"
+          >
+            홈으로 돌아가기
+          </button>
+        </div>
+      );
+    }
     return (
       <p className="px-4 py-8 text-center text-muted-foreground">
         게시글을 불러오는 중 오류가 발생했습니다.

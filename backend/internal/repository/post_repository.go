@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,6 +33,12 @@ type PostRepository interface {
 	Update(ctx context.Context, id uuid.UUID, content string, visibility model.Visibility, locationLat *float64, locationLng *float64, locationName *string) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	SoftDeleteReply(ctx context.Context, id uuid.UUID, parentID uuid.UUID) error
+	ExistsIncludingDeleted(ctx context.Context, id uuid.UUID) (exists bool, isDeleted bool, err error)
+	FindByIDIncludingDeleted(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error)
+	FindDeletedByAuthor(ctx context.Context, authorID uuid.UUID, limit int, cursor *time.Time) ([]model.PostWithAuthor, error)
+	Restore(ctx context.Context, id uuid.UUID) error
+	RestoreReply(ctx context.Context, id uuid.UUID, parentID uuid.UUID) error
+	HardDelete(ctx context.Context, id uuid.UUID) error
 }
 
 type postRepository struct {
@@ -802,6 +809,130 @@ func (r *postRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	result, err := r.pool.Exec(ctx, `UPDATE posts SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete post: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *postRepository) ExistsIncludingDeleted(ctx context.Context, id uuid.UUID) (bool, bool, error) {
+	var exists, isDeleted bool
+	query := `
+		SELECT
+			EXISTS(SELECT 1 FROM posts WHERE id = $1) AS exists,
+			EXISTS(SELECT 1 FROM posts WHERE id = $1 AND deleted_at IS NOT NULL) AS is_deleted`
+	err := r.pool.QueryRow(ctx, query, id).Scan(&exists, &isDeleted)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to check post existence: %w", err)
+	}
+	return exists, isDeleted, nil
+}
+
+func (r *postRepository) FindByIDIncludingDeleted(ctx context.Context, id uuid.UUID) (*model.PostWithAuthor, error) {
+	p := &model.PostWithAuthor{}
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at, p.deleted_at,
+		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
+		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
+		       p.location_lat, p.location_lng, p.location_name
+		FROM posts p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.id = $1`
+
+	var visibility string
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt,
+		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+		&p.AuthorDeleted,
+		&p.LocationLat, &p.LocationLng, &p.LocationName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.Visibility = model.Visibility(visibility)
+	return p, nil
+}
+
+func (r *postRepository) FindDeletedByAuthor(ctx context.Context, authorID uuid.UUID, limit int, cursor *time.Time) ([]model.PostWithAuthor, error) {
+	query := `
+		SELECT p.id, p.author_id, p.parent_id, p.content, p.visibility, p.like_count, p.reply_count, p.view_count, p.repost_count, p.created_at, p.updated_at, p.deleted_at,
+		       COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.profile_image_url, ''),
+		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
+		       p.location_lat, p.location_lng, p.location_name
+		FROM posts p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.author_id = $1
+		  AND p.deleted_at IS NOT NULL
+		  AND ($2::TIMESTAMPTZ IS NULL OR p.deleted_at < $2)
+		ORDER BY p.deleted_at DESC
+		LIMIT $3`
+
+	rows, err := r.pool.Query(ctx, query, authorID, cursor, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []model.PostWithAuthor
+	for rows.Next() {
+		var p model.PostWithAuthor
+		var visibility string
+		if err := rows.Scan(
+			&p.ID, &p.AuthorID, &p.ParentID, &p.Content, &visibility, &p.LikeCount, &p.ReplyCount, &p.ViewCount, &p.RepostCount, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt,
+			&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorProfileImageURL,
+			&p.AuthorDeleted,
+			&p.LocationLat, &p.LocationLng, &p.LocationName,
+		); err != nil {
+			return nil, err
+		}
+		p.Visibility = model.Visibility(visibility)
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
+
+func (r *postRepository) Restore(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `UPDATE posts SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore post: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *postRepository) RestoreReply(ctx context.Context, id uuid.UUID, parentID uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	result, err := tx.Exec(ctx, `UPDATE posts SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore reply: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE posts SET reply_count = reply_count + 1 WHERE id = $1`,
+		parentID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to increment reply_count: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *postRepository) HardDelete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `DELETE FROM posts WHERE id = $1 AND deleted_at IS NOT NULL`, id)
+	if err != nil {
+		return fmt.Errorf("failed to hard delete post: %w", err)
 	}
 	if result.RowsAffected() == 0 {
 		return pgx.ErrNoRows

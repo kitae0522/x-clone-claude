@@ -49,6 +49,8 @@ func Setup(p Params) {
 	posts.Delete("/:id/bookmark", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.Unbookmark)
 	posts.Post("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Vote)
 	posts.Delete("/:id/vote", middleware.AuthRequired(jwtSecret), p.PollHandler.Unvote)
+	posts.Put("/:id/restore", middleware.AuthRequired(jwtSecret), p.PostHandler.RestorePost)
+	posts.Delete("/:id/permanent", middleware.AuthRequired(jwtSecret), p.PostHandler.PermanentDeletePost)
 	posts.Post("/:id/repost", middleware.AuthRequired(jwtSecret), p.RepostHandler.Repost)
 	posts.Delete("/:id/repost", middleware.AuthRequired(jwtSecret), p.RepostHandler.Unrepost)
 
@@ -59,6 +61,7 @@ func Setup(p Params) {
 	auth.Get("/me", middleware.AuthRequired(jwtSecret), p.AuthHandler.Me)
 
 	users := api.Group("/users")
+	users.Get("/trash", middleware.AuthRequired(jwtSecret), p.PostHandler.ListTrash)
 	users.Get("/bookmarks", middleware.AuthRequired(jwtSecret), p.BookmarkHandler.ListBookmarks)
 	users.Put("/password", middleware.AuthRequired(jwtSecret), p.UserHandler.ChangePassword)
 	users.Delete("/account", middleware.AuthRequired(jwtSecret), p.UserHandler.DeleteAccount)

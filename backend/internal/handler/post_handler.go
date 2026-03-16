@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/apperror"
@@ -187,6 +189,94 @@ func (h *PostHandler) DeletePost(c *fiber.Ctx) error {
 	return c.JSON(dto.APIResponse{
 		Success: true,
 		Data:    dto.DeletePostResponse{Message: "post deleted successfully"},
+	})
+}
+
+func (h *PostHandler) ListTrash(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	limit := c.QueryInt("limit", 20)
+
+	var cursor *time.Time
+	if cursorStr := c.Query("cursor"); cursorStr != "" {
+		t, err := time.Parse(time.RFC3339, cursorStr)
+		if err != nil {
+			return respondError(c, apperror.BadRequest("invalid cursor format"))
+		}
+		cursor = &t
+	}
+
+	resp, err := h.postService.ListTrash(c.Context(), userID, limit, cursor)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    resp,
+	})
+}
+
+func (h *PostHandler) RestorePost(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	requesterID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	postIDStr := c.Params("id")
+	postID, err := uuid.Parse(postIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	resp, err := h.postService.RestorePost(c.Context(), postID, requesterID)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    dto.RestorePostResponse{Message: "post restored successfully", Post: *resp},
+	})
+}
+
+func (h *PostHandler) PermanentDeletePost(c *fiber.Ctx) error {
+	userIDStr, ok := c.Locals("userID").(string)
+	if !ok {
+		return respondError(c, apperror.Unauthorized("not authenticated"))
+	}
+
+	requesterID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return respondError(c, apperror.Unauthorized("invalid user ID"))
+	}
+
+	postIDStr := c.Params("id")
+	postID, err := uuid.Parse(postIDStr)
+	if err != nil {
+		return respondError(c, apperror.BadRequest("invalid post ID"))
+	}
+
+	if err := h.postService.PermanentDeletePost(c.Context(), postID, requesterID); err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(dto.APIResponse{
+		Success: true,
+		Data:    dto.PermanentDeleteResponse{Message: "post permanently deleted"},
 	})
 }
 

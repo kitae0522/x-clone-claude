@@ -31,6 +31,10 @@ func Conflict(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 409, Message: fmt.Sprintf(msg, args...)}
 }
 
+func Gone(msg string, args ...interface{}) *AppError {
+	return &AppError{Code: 410, Message: fmt.Sprintf(msg, args...)}
+}
+
 func Internal(msg string, args ...interface{}) *AppError {
 	return &AppError{Code: 500, Message: fmt.Sprintf(msg, args...)}
 }
