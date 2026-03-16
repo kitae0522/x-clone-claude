@@ -122,6 +122,30 @@ func (m *mockPostRepoForPoll) SoftDeleteReply(_ context.Context, _ uuid.UUID, _ 
 	return nil
 }
 
+func (m *mockPostRepoForPoll) ExistsIncludingDeleted(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+	return false, false, nil
+}
+
+func (m *mockPostRepoForPoll) FindByIDIncludingDeleted(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepoForPoll) FindDeletedByAuthor(_ context.Context, _ uuid.UUID, _ int, _ *time.Time) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepoForPoll) Restore(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForPoll) RestoreReply(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForPoll) HardDelete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 // --- Tests ---
 
 func TestPollService_Vote(t *testing.T) {

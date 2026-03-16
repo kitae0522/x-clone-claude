@@ -109,6 +109,30 @@ func (m *mockPostRepoForBookmark) SoftDeleteReply(_ context.Context, _ uuid.UUID
 	return nil
 }
 
+func (m *mockPostRepoForBookmark) ExistsIncludingDeleted(_ context.Context, _ uuid.UUID) (bool, bool, error) {
+	return false, false, nil
+}
+
+func (m *mockPostRepoForBookmark) FindByIDIncludingDeleted(_ context.Context, _ uuid.UUID) (*model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepoForBookmark) FindDeletedByAuthor(_ context.Context, _ uuid.UUID, _ int, _ *time.Time) ([]model.PostWithAuthor, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepoForBookmark) Restore(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForBookmark) RestoreReply(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockPostRepoForBookmark) HardDelete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 func TestBookmark(t *testing.T) {
 	existingPostID := uuid.New()
 	userID := uuid.New()

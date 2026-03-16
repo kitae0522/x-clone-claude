@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/kitae0522/twitter-clone-claude/backend/internal/model"
 )
 
@@ -213,4 +215,105 @@ func derefStr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// Trash DTOs
+
+const trashRetentionDays = 30
+
+func TrashRetentionDays() int {
+	return trashRetentionDays
+}
+
+type TrashPostResponse struct {
+	ID          string            `json:"id"`
+	AuthorID    string            `json:"authorId"`
+	ParentID    *string           `json:"parentId"`
+	Content     string            `json:"content"`
+	Visibility  string            `json:"visibility"`
+	Author      PostAuthor        `json:"author"`
+	LikeCount   int               `json:"likeCount"`
+	ReplyCount  int               `json:"replyCount"`
+	ViewCount   int               `json:"viewCount"`
+	RepostCount int               `json:"repostCount"`
+	Location    *LocationResponse `json:"location,omitempty"`
+	Media       []MediaResponse   `json:"media,omitempty"`
+	Poll        *PollResponse     `json:"poll,omitempty"`
+	CreatedAt   string            `json:"createdAt"`
+	DeletedAt   string            `json:"deletedAt"`
+	CanRestore  bool              `json:"canRestore"`
+}
+
+type TrashListResponse struct {
+	Posts      []TrashPostResponse `json:"posts"`
+	NextCursor *string             `json:"nextCursor"`
+	HasMore    bool                `json:"hasMore"`
+}
+
+type RestorePostResponse struct {
+	Message string             `json:"message"`
+	Post    PostDetailResponse `json:"post"`
+}
+
+type PermanentDeleteResponse struct {
+	Message string `json:"message"`
+}
+
+func ToTrashPostResponse(p model.PostWithAuthor, now time.Time) TrashPostResponse {
+	var parentID *string
+	if p.ParentID != nil {
+		s := p.ParentID.String()
+		parentID = &s
+	}
+
+	author := PostAuthor{
+		Username:        p.AuthorUsername,
+		DisplayName:     p.AuthorDisplayName,
+		ProfileImageURL: p.AuthorProfileImageURL,
+	}
+	if p.AuthorDeleted {
+		author = PostAuthor{
+			Username:    "deleted",
+			DisplayName: "탈퇴한 사용자",
+			IsDeleted:   true,
+		}
+	}
+
+	canRestore := true
+	deletedAtStr := ""
+	if p.DeletedAt != nil {
+		deletedAtStr = p.DeletedAt.Format("2006-01-02T15:04:05Z")
+		if now.Sub(*p.DeletedAt) > time.Duration(trashRetentionDays)*24*time.Hour {
+			canRestore = false
+		}
+	}
+
+	resp := TrashPostResponse{
+		ID:          p.ID.String(),
+		AuthorID:    p.AuthorID.String(),
+		ParentID:    parentID,
+		Content:     p.Content,
+		Visibility:  string(p.Visibility),
+		Author:      author,
+		LikeCount:   p.LikeCount,
+		ReplyCount:  p.ReplyCount,
+		ViewCount:   p.ViewCount,
+		RepostCount: p.RepostCount,
+		CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		DeletedAt:   deletedAtStr,
+		CanRestore:  canRestore,
+	}
+
+	if p.LocationLat != nil && p.LocationLng != nil {
+		loc := &LocationResponse{
+			Latitude:  *p.LocationLat,
+			Longitude: *p.LocationLng,
+		}
+		if p.LocationName != nil {
+			loc.Name = *p.LocationName
+		}
+		resp.Location = loc
+	}
+
+	return resp
 }

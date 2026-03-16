@@ -206,3 +206,37 @@ export interface BookmarkListResponse {
   nextCursor: string;
   hasMore: boolean;
 }
+
+export interface TrashPost {
+  id: string;
+  authorId: string;
+  parentId: string | null;
+  content: string;
+  visibility: string;
+  author: PostAuthor;
+  likeCount: number;
+  replyCount: number;
+  viewCount: number;
+  repostCount: number;
+  location?: LocationData;
+  media?: MediaItem[];
+  poll?: PollData;
+  createdAt: string;
+  deletedAt: string;
+  canRestore: boolean;
+}
+
+export interface TrashListResponse {
+  posts: TrashPost[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface RestorePostResponse {
+  message: string;
+  post: PostDetail;
+}
+
+export interface PermanentDeleteResponse {
+  message: string;
+}

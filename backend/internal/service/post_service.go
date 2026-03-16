@@ -29,6 +29,9 @@ type PostService interface {
 	ListLikedPostsByHandle(ctx context.Context, handle string, viewerID *uuid.UUID) ([]dto.PostDetailResponse, error)
 	UpdatePost(ctx context.Context, postID, requesterID uuid.UUID, req dto.UpdatePostRequest) (*dto.PostDetailResponse, error)
 	DeletePost(ctx context.Context, postID, requesterID uuid.UUID) error
+	ListTrash(ctx context.Context, userID uuid.UUID, limit int, cursor *time.Time) (*dto.TrashListResponse, error)
+	RestorePost(ctx context.Context, postID, requesterID uuid.UUID) (*dto.PostDetailResponse, error)
+	PermanentDeletePost(ctx context.Context, postID, requesterID uuid.UUID) error
 }
 
 const maxAuthorThreadDepth = 10
@@ -146,6 +149,10 @@ func (s *postService) GetPostByID(ctx context.Context, id uuid.UUID, userID *uui
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
+			exists, isDeleted, checkErr := s.postRepo.ExistsIncludingDeleted(ctx, id)
+			if checkErr == nil && exists && isDeleted {
+				return nil, apperror.Gone("this post has been deleted")
+			}
 			return nil, apperror.NotFound("post not found")
 		}
 		return nil, apperror.Internal("failed to retrieve post")
@@ -812,5 +819,115 @@ func (s *postService) DeletePost(ctx context.Context, postID, requesterID uuid.U
 	if err := s.postRepo.SoftDelete(ctx, postID); err != nil {
 		return apperror.Internal("failed to delete post")
 	}
+	return nil
+}
+
+func (s *postService) ListTrash(ctx context.Context, userID uuid.UUID, limit int, cursor *time.Time) (*dto.TrashListResponse, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	posts, err := s.postRepo.FindDeletedByAuthor(ctx, userID, limit+1, cursor)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve trash")
+	}
+
+	hasMore := len(posts) > limit
+	if hasMore {
+		posts = posts[:limit]
+	}
+
+	now := time.Now()
+	items := make([]dto.TrashPostResponse, len(posts))
+	for i, p := range posts {
+		items[i] = dto.ToTrashPostResponse(p, now)
+	}
+
+	var nextCursor *string
+	if hasMore && len(posts) > 0 {
+		last := posts[len(posts)-1]
+		if last.DeletedAt != nil {
+			c := last.DeletedAt.Format(time.RFC3339)
+			nextCursor = &c
+		}
+	}
+
+	return &dto.TrashListResponse{
+		Posts:      items,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+func (s *postService) RestorePost(ctx context.Context, postID, requesterID uuid.UUID) (*dto.PostDetailResponse, error) {
+	post, err := s.postRepo.FindByIDIncludingDeleted(ctx, postID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apperror.NotFound("post not found")
+		}
+		return nil, apperror.Internal("failed to retrieve post")
+	}
+
+	if post.DeletedAt == nil {
+		return nil, apperror.BadRequest("post is not deleted")
+	}
+
+	if post.AuthorID != requesterID {
+		return nil, apperror.Forbidden("you can only restore your own post")
+	}
+
+	if time.Since(*post.DeletedAt) > time.Duration(dto.TrashRetentionDays())*24*time.Hour {
+		return nil, apperror.BadRequest("post cannot be restored after 30 days")
+	}
+
+	if post.ParentID != nil {
+		parentExists, parentDeleted, checkErr := s.postRepo.ExistsIncludingDeleted(ctx, *post.ParentID)
+		if checkErr != nil {
+			return nil, apperror.Internal("failed to check parent post")
+		}
+		if !parentExists || parentDeleted {
+			return nil, apperror.BadRequest("cannot restore reply: parent post is deleted")
+		}
+
+		if err := s.postRepo.RestoreReply(ctx, postID, *post.ParentID); err != nil {
+			return nil, apperror.Internal("failed to restore reply")
+		}
+	} else {
+		if err := s.postRepo.Restore(ctx, postID); err != nil {
+			return nil, apperror.Internal("failed to restore post")
+		}
+	}
+
+	result, err := s.postRepo.FindByID(ctx, postID)
+	if err != nil {
+		return nil, apperror.Internal("failed to retrieve restored post")
+	}
+
+	resp := dto.ToPostDetailResponse(*result)
+	_ = s.enrichWithPollAndMedia(ctx, &resp, &requesterID)
+	return &resp, nil
+}
+
+func (s *postService) PermanentDeletePost(ctx context.Context, postID, requesterID uuid.UUID) error {
+	post, err := s.postRepo.FindByIDIncludingDeleted(ctx, postID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return apperror.NotFound("post not found")
+		}
+		return apperror.Internal("failed to retrieve post")
+	}
+
+	if post.DeletedAt == nil {
+		return apperror.BadRequest("post is not in trash")
+	}
+
+	if post.AuthorID != requesterID {
+		return apperror.Forbidden("you can only permanently delete your own post")
+	}
+
+	if err := s.postRepo.HardDelete(ctx, postID); err != nil {
+		return apperror.Internal("failed to permanently delete post")
+	}
+
 	return nil
 }

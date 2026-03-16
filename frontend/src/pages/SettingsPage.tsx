@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -90,6 +91,22 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
       <h1 className="mb-6 text-xl font-bold">설정</h1>
+
+      {/* Trash Link */}
+      <section className="mb-8">
+        <button
+          onClick={() => navigate("/trash")}
+          className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-border bg-transparent px-4 py-3 text-left transition-colors hover:bg-muted"
+        >
+          <Trash2 className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">휴지통</p>
+            <p className="text-xs text-muted-foreground">
+              삭제된 게시글을 관리합니다
+            </p>
+          </div>
+        </button>
+      </section>
 
       {/* Password Change Section */}
       <section className="mb-8">

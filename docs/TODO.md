@@ -218,13 +218,25 @@
 - [x] 빌드 & 테스트 통과
 - [ ] PR 생성 및 이슈 연결
 
+## Phase 19: 삭제된 게시글 접근 제어 + 휴지통 API (#67) (완료)
+- [x] apperror.Gone (HTTP 410) 추가
+- [x] PostRepository: ExistsIncludingDeleted, FindByIDIncludingDeleted, FindDeletedByAuthor, Restore, RestoreReply, HardDelete
+- [x] PostService: GetPostByID 410 응답, ListTrash, RestorePost, PermanentDeletePost
+- [x] PostHandler: ListTrash, RestorePost, PermanentDeletePost
+- [x] Router: GET /users/trash, PUT /posts/:id/restore, DELETE /posts/:id/permanent
+- [x] DB 마이그레이션: 019_trash_index (author_id + deleted_at 부분 인덱스)
+- [x] 프론트엔드: TrashPage, useTrash hook, PostDetailPage 410 처리
+- [x] SettingsPage에 휴지통 링크 추가
+- [x] 기존 테스트 mock 업데이트 + 전체 빌드/테스트 통과
+
 ## 후속 이슈 (등록 완료)
 - [ ] #65 탈퇴 사용자 게시글 작성자 익명 처리
 - [x] #66 게시글 Soft Delete 전역 필터 적용 (이미 구현됨)
-- [ ] #67 삭제된 게시글 접근 제어 + 휴지통 API
+- [x] #67 삭제된 게시글 접근 제어 + 휴지통 API
 - [ ] #68 탈퇴 시 좋아요 Soft Delete 처리
 
 ## 최근 변경 로그
+- 2026-03-16: 이슈 #67 삭제된 게시글 접근 제어 + 휴지통 API — 410 Gone, 복원/영구삭제, TrashPage
 - 2026-03-14: 이슈 #64 탈퇴 계정 email/username 재사용 — Partial Unique Index 마이그레이션
 - 2026-03-14: 이슈 #56 비밀번호 변경 및 계정 탈퇴 - Settings 페이지, soft delete, bcrypt 검증
 - 2026-03-07: 이슈 #60 프로필 이미지 S3 전환 - media-service 경유 업로드 + 4종 리사이즈
