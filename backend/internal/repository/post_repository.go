@@ -494,7 +494,7 @@ func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, 
 		           p.created_at AS sort_time
 		    FROM posts p
 		    LEFT JOIN users u ON p.author_id = u.id
-		    WHERE u.username = $1 AND p.parent_id IS NULL
+		    WHERE u.username = $1 AND u.deleted_at IS NULL AND p.parent_id IS NULL
 		      AND p.visibility = 'public' AND p.deleted_at IS NULL
 
 		    UNION ALL
@@ -509,7 +509,7 @@ func (r *postRepository) FindByAuthorHandle(ctx context.Context, handle string, 
 		    JOIN users ru ON rp.user_id = ru.id
 		    JOIN posts p ON p.id = rp.post_id
 		    LEFT JOIN users u ON p.author_id = u.id
-		    WHERE ru.username = $1 AND p.parent_id IS NULL
+		    WHERE ru.username = $1 AND ru.deleted_at IS NULL AND p.parent_id IS NULL
 		      AND p.visibility = 'public' AND p.deleted_at IS NULL
 		  ) sub
 		  ORDER BY id, sort_time DESC
@@ -567,7 +567,7 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		           p.created_at AS sort_time
 		    FROM posts p
 		    LEFT JOIN users u ON p.author_id = u.id
-		    WHERE u.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
+		    WHERE u.username = $1 AND u.deleted_at IS NULL AND p.parent_id IS NULL AND p.deleted_at IS NULL
 		      AND (
 		        p.visibility = 'public'
 		        OR (p.visibility = 'follower' AND (
@@ -592,7 +592,7 @@ func (r *postRepository) FindByAuthorHandleWithUser(ctx context.Context, handle 
 		    JOIN users ru ON rp.user_id = ru.id
 		    JOIN posts p ON p.id = rp.post_id
 		    LEFT JOIN users u ON p.author_id = u.id
-		    WHERE ru.username = $1 AND p.parent_id IS NULL AND p.deleted_at IS NULL
+		    WHERE ru.username = $1 AND ru.deleted_at IS NULL AND p.parent_id IS NULL AND p.deleted_at IS NULL
 		      AND (
 		        p.visibility = 'public'
 		        OR (p.visibility = 'follower' AND (
@@ -674,7 +674,7 @@ func (r *postRepository) FindRepliesByAuthorHandle(ctx context.Context, handle s
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
-		WHERE u.username = $1 AND p.parent_id IS NOT NULL
+		WHERE u.username = $1 AND u.deleted_at IS NULL AND p.parent_id IS NOT NULL
 		  AND p.visibility = 'public' AND p.deleted_at IS NULL
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3`
@@ -701,7 +701,7 @@ func (r *postRepository) FindRepliesByAuthorHandleWithUser(ctx context.Context, 
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN posts pp ON pp.id = p.parent_id
 		LEFT JOIN users pu ON pu.id = pp.author_id
-		WHERE u.username = $1 AND p.parent_id IS NOT NULL AND p.deleted_at IS NULL
+		WHERE u.username = $1 AND u.deleted_at IS NULL AND p.parent_id IS NOT NULL AND p.deleted_at IS NULL
 		  AND (
 		    p.visibility = 'public'
 		    OR (p.visibility = 'follower' AND (
@@ -727,7 +727,7 @@ func (r *postRepository) FindLikedByUserHandle(ctx context.Context, handle strin
 		       (u.deleted_at IS NOT NULL OR u.id IS NULL),
 		       p.location_lat, p.location_lng, p.location_name
 		FROM likes lk
-		JOIN users target ON target.username = $1
+		JOIN users target ON target.username = $1 AND target.deleted_at IS NULL
 		JOIN posts p ON p.id = lk.post_id
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE lk.user_id = target.id
@@ -752,7 +752,7 @@ func (r *postRepository) FindLikedByUserHandleWithViewer(ctx context.Context, ha
 		       EXISTS(SELECT 1 FROM reposts r WHERE r.user_id = $4 AND r.post_id = p.id) AS is_reposted,
 		       p.location_lat, p.location_lng, p.location_name
 		FROM likes lk
-		JOIN users target ON target.username = $1
+		JOIN users target ON target.username = $1 AND target.deleted_at IS NULL
 		JOIN posts p ON p.id = lk.post_id
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE lk.user_id = target.id AND p.deleted_at IS NULL
